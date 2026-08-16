@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Package, FolderOpen, Upload, Cpu, ShieldCheck,
   Sparkles, BarChart3, Activity, Settings, HelpCircle, ChevronLeft,
-  ChevronRight, LogOut, User,
+  ChevronRight, LogOut, User, Building2,
 } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,7 +52,7 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
-  const { user, signOut } = useAuth();
+  const { user, organization, signOut } = useAuth();
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
 
@@ -129,15 +129,47 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           </button>
         )}
 
-        {/* Navigation */}
-        <nav style={{ flex: 1, overflowY: 'auto', padding: '0.5rem 0.75rem' }}>
-          {NAV_SECTIONS.map((section) => (
-            <div key={section.label ?? 'main'} style={{ marginBottom: '1.5rem' }}>
+        {/* Organization Scope Pill */}
+        {!collapsed && (
+          <div style={{ padding: '0.75rem 1rem 0.25rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '0.375rem 0.625rem',
+                background: 'rgba(255,255,255,0.05)',
+                borderRadius: '6px',
+                border: '1px solid rgba(255,255,255,0.08)',
+                overflow: 'hidden',
+              }}
+            >
+              <Building2 size={13} color="var(--ps-primary, #3b82f6)" style={{ flexShrink: 0 }} />
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  color: 'var(--ps-slate-200, #e2e8f0)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {organization?.name || 'Organization Workspace'}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Navigation items */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem' }}>
+          {NAV_SECTIONS.map((section, sIdx) => (
+            <div key={sIdx} style={{ marginBottom: '1.25rem' }}>
               {section.label && !collapsed && (
                 <div
                   style={{
                     fontSize: '0.6875rem',
-                    fontWeight: 600,
+                    fontWeight: 700,
                     textTransform: 'uppercase',
                     letterSpacing: '0.08em',
                     color: 'var(--ps-slate-600)',
@@ -148,51 +180,83 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
                   {section.label}
                 </div>
               )}
-              {section.items.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`sidebar-nav-item${active ? ' active' : ''}`}
-                    title={collapsed ? item.label : undefined}
-                    style={collapsed ? { justifyContent: 'center', padding: '0.5625rem' } : undefined}
-                    onClick={mobileOpen ? onMobileClose : undefined}
-                  >
-                    <Icon className="icon" />
-                    {!collapsed && <span>{item.label}</span>}
-                  </Link>
-                );
-              })}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                {section.items.map((item) => {
+                  const active = isActive(item.href);
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={onMobileClose}
+                      className={`nav-item${active ? ' active' : ''}`}
+                      title={collapsed ? item.label : undefined}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        padding: collapsed ? '0.625rem' : '0.5rem 0.75rem',
+                        borderRadius: '6px',
+                        color: active ? 'white' : 'var(--ps-slate-400)',
+                        background: active ? 'var(--ps-primary)' : 'transparent',
+                        textDecoration: 'none',
+                        fontSize: '0.875rem',
+                        fontWeight: active ? 600 : 400,
+                        transition: 'all 0.15s ease',
+                        justifyContent: collapsed ? 'center' : 'flex-start',
+                      }}
+                    >
+                      <Icon size={18} style={{ flexShrink: 0 }} />
+                      {!collapsed && <span>{item.label}</span>}
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           ))}
-        </nav>
+        </div>
 
-        {/* Bottom */}
+        {/* Bottom actions & user */}
         <div
           style={{
             padding: '0.75rem',
             borderTop: '1px solid rgba(255,255,255,0.06)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px',
           }}
         >
           {BOTTOM_ITEMS.map((item) => {
+            const active = isActive(item.href);
             const Icon = item.icon;
             return (
               <Link
-                key={item.label}
+                key={item.href}
                 href={item.href}
-                className="sidebar-nav-item"
+                onClick={onMobileClose}
+                className={`nav-item${active ? ' active' : ''}`}
                 title={collapsed ? item.label : undefined}
-                style={collapsed ? { justifyContent: 'center', padding: '0.5625rem' } : undefined}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: collapsed ? '0.625rem' : '0.5rem 0.75rem',
+                  borderRadius: '6px',
+                  color: active ? 'white' : 'var(--ps-slate-400)',
+                  background: active ? 'var(--ps-primary)' : 'transparent',
+                  textDecoration: 'none',
+                  fontSize: '0.875rem',
+                  fontWeight: active ? 600 : 400,
+                  justifyContent: collapsed ? 'center' : 'flex-start',
+                }}
               >
-                <Icon className="icon" />
+                <Icon size={18} style={{ flexShrink: 0 }} />
                 {!collapsed && <span>{item.label}</span>}
               </Link>
             );
           })}
 
-          {/* User profile */}
+          {/* User profile row */}
           <div
             style={{
               display: 'flex',

@@ -2,134 +2,154 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Building2, Users, Boxes } from 'lucide-react';
+import { ArrowRight, Building2, Users, Boxes, CheckCircle2 } from 'lucide-react';
 
-const SOLUTIONS = [
+const AUDIENCES = [
   {
-    icon: <Building2 size={20} />,
+    icon: <Building2 size={22} color="#2563eb" />,
     label: 'Industrial Suppliers',
-    desc: 'Manage thousands of SKUs with consistent quality.',
-    color: '#2563eb',
+    desc: 'Automate technical catalog ingestion across 50,000+ SKUs with zero retyping overhead.',
   },
   {
-    icon: <Users size={20} />,
+    icon: <Users size={22} color="#059669" />,
     label: 'Procurement Teams',
-    desc: 'Verify supplier data accuracy at scale.',
-    color: '#10b981',
+    desc: 'Verify supplier data accuracy, spot counterfeit specs, and reconcile vendor line-items.',
   },
   {
-    icon: <Boxes size={20} />,
+    icon: <Boxes size={22} color="#7c3aed" />,
     label: 'Catalog Managers',
-    desc: 'Build and maintain commerce-ready catalogs.',
-    color: '#8b5cf6',
+    desc: 'Publish standardized, complete attributes directly to e-commerce PIM & ERP platforms.',
   },
 ];
 
 export default function CTASection() {
   return (
-    <section
-      style={{
-        padding: '6rem 1.5rem',
-        background: 'var(--ps-bg-secondary)',
-      }}
-    >
-      <div style={{ maxWidth: '900px', margin: '0 auto', textAlign: 'center' }}>
-        <div style={{ marginBottom: '1rem' }}>
-          <span
-            style={{
-              display: 'inline-block',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              color: 'var(--ps-primary)',
-              background: 'var(--ps-primary-100)',
-              padding: '0.25rem 0.75rem',
-              borderRadius: '20px',
-            }}
-          >
-            Get Started
-          </span>
-        </div>
-
-        <h2
-          className="text-h1"
-          style={{ marginBottom: '1.25rem', color: 'var(--ps-text-primary)' }}
-        >
-          Ready to Turn Product Data Into{' '}
-          <span style={{ color: 'var(--ps-primary)' }}>Intelligence?</span>
-        </h2>
-
-        <p
-          className="text-body"
-          style={{
-            color: 'var(--ps-text-secondary)',
-            maxWidth: '500px',
-            margin: '0 auto 2.5rem',
-            fontSize: '1.0625rem',
-          }}
-        >
-          Join industrial companies using ProdSync to transform scattered product information
-          into trusted product intelligence — at any scale.
-        </p>
-
-        {/* Solutions pills */}
+    <section style={{ padding: '5rem 1.5rem', position: 'relative' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        {/* Main Neumorphic CTA Center Card */}
         <div
+          className="neu-raised-xl"
           style={{
-            display: 'flex',
-            gap: '0.75rem',
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-            marginBottom: '2.5rem',
+            padding: '4rem 2rem',
+            textAlign: 'center',
+            position: 'relative',
           }}
         >
-          {SOLUTIONS.map((s) => (
-            <div
-              key={s.label}
+          <div style={{ maxWidth: '720px', margin: '0 auto' }}>
+            <div className="neu-badge neu-badge-blue" style={{ marginBottom: '1.25rem' }}>
+              <span>Instant Catalog Setup</span>
+            </div>
+
+            <h2
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.5rem 1rem',
-                background: 'white',
-                border: '1px solid var(--ps-border)',
-                borderRadius: '20px',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                color: 'var(--ps-text-secondary)',
+                fontSize: 'clamp(2rem, 4vw, 3.25rem)',
+                fontWeight: 800,
+                color: 'var(--neu-text-title)',
+                letterSpacing: '-0.03em',
+                lineHeight: 1.15,
+                marginBottom: '1.25rem',
               }}
             >
-              <span style={{ color: s.color }}>{s.icon}</span>
-              {s.label}
+              Ready to Turn Product Data Into{' '}
+              <span
+                style={{
+                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                Intelligence?
+              </span>
+            </h2>
+
+            <p
+              style={{
+                fontSize: '1.125rem',
+                color: 'var(--neu-text-body)',
+                lineHeight: 1.6,
+                marginBottom: '2.5rem',
+              }}
+            >
+              Upload your first PDF datasheet, CSV, or spreadsheet today. Experience autonomous
+              extraction, deterministic validation, and explainable AI insights in seconds.
+            </p>
+
+            {/* Action Buttons */}
+            <div
+              style={{
+                display: 'flex',
+                gap: '1rem',
+                justifyContent: 'center',
+                flexWrap: 'wrap',
+                marginBottom: '3rem',
+              }}
+            >
+              <Link
+                href="/register"
+                className="neu-btn neu-btn-primary"
+                style={{
+                  padding: '0.875rem 2rem',
+                  fontSize: '1.0625rem',
+                  gap: '0.5rem',
+                }}
+              >
+                Get Started Free
+                <ArrowRight size={18} />
+              </Link>
+              <Link
+                href="/how-it-works"
+                className="neu-btn neu-btn-secondary"
+                style={{
+                  padding: '0.875rem 1.75rem',
+                  fontSize: '1.0625rem',
+                }}
+              >
+                Schedule Demo
+              </Link>
             </div>
-          ))}
-        </div>
 
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link
-            href="/register"
-            className="ps-btn ps-btn-primary ps-btn-lg"
-          >
-            Start Building Your Catalog
-            <ArrowRight size={18} />
-          </Link>
-          <Link
-            href="/login"
-            className="ps-btn ps-btn-secondary ps-btn-lg"
-          >
-            Sign In
-          </Link>
+            {/* 3 Audience Cards */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '1.25rem',
+                textAlign: 'left',
+              }}
+            >
+              {AUDIENCES.map((aud) => (
+                <div
+                  key={aud.label}
+                  className="neu-card"
+                  style={{
+                    padding: '1.25rem',
+                  }}
+                >
+                  <div
+                    className="neu-inset-sm"
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: '0.875rem',
+                    }}
+                  >
+                    {aud.icon}
+                  </div>
+                  <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--neu-text-title)', marginBottom: '0.25rem' }}>
+                    {aud.label}
+                  </div>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--neu-text-muted)', lineHeight: 1.4 }}>
+                    {aud.desc}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-
-        <p
-          style={{
-            marginTop: '1.5rem',
-            fontSize: '0.8125rem',
-            color: 'var(--ps-text-muted)',
-          }}
-        >
-          No credit card required · Enterprise-ready · Built for industrial scale
-        </p>
       </div>
     </section>
   );

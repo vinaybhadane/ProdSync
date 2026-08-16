@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, ChevronDown } from 'lucide-react';
+import { Menu, X, ArrowRight, Sparkles } from 'lucide-react';
 import Logo from '@/components/Logo';
 
 const NAV_LINKS = [
@@ -19,116 +19,122 @@ export default function Navbar() {
   const pathname = usePathname();
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
+    const handleScroll = () => setScrolled(window.scrollY > 15);
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   return (
     <nav
-      className={`landing-nav ${scrolled ? 'scrolled' : ''}`}
+      className="neu-navbar"
       style={{
-        background: scrolled ? undefined : 'transparent',
+        padding: '0.625rem 1.25rem',
       }}
       aria-label="Main navigation"
     >
       <div
         style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          padding: '0 1.5rem',
-          height: '68px',
           display: 'flex',
           alignItems: 'center',
-          gap: '2rem',
+          justifyContent: 'space-between',
+          gap: '1.5rem',
         }}
       >
-        {/* Logo */}
-        <Link href="/" aria-label="ProdSync home">
+        {/* Logo Container */}
+        <Link href="/" aria-label="ProdSync home" style={{ textDecoration: 'none' }}>
           <Logo size="md" />
         </Link>
 
-        {/* Desktop nav */}
-        <div className="hidden md:flex items-center gap-1 flex-1 justify-center">
-          {NAV_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              style={{
-                padding: '0.5rem 0.875rem',
-                borderRadius: '8px',
-                fontSize: '0.9375rem',
-                fontWeight: 500,
-                color: pathname === link.href ? 'var(--ps-primary)' : 'var(--ps-text-secondary)',
-                textDecoration: 'none',
-                transition: 'color 0.15s, background 0.15s',
-              }}
-              className="hover:text-slate-900 hover:bg-slate-100"
-            >
-              {link.label}
-            </Link>
-          ))}
+        {/* Desktop Nav Links */}
+        <div className="neu-desktop-nav gap-2">
+          {NAV_LINKS.map((link) => {
+            const isActive = pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`neu-nav-link ${isActive ? 'active' : ''}`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
         </div>
 
-        {/* Auth actions */}
-        <div className="hidden md:flex items-center gap-3 ml-auto">
+        {/* Auth Actions */}
+        <div className="neu-desktop-auth gap-3">
           <Link
             href="/login"
-            className="ps-btn ps-btn-ghost"
-            style={{ fontSize: '0.9375rem' }}
+            className="neu-btn neu-btn-secondary"
+            style={{
+              padding: '0.5rem 1.125rem',
+              fontSize: '0.875rem',
+            }}
           >
             Sign In
           </Link>
           <Link
             href="/register"
-            className="ps-btn ps-btn-primary"
-            style={{ fontSize: '0.9375rem' }}
+            className="neu-btn neu-btn-primary"
+            style={{
+              padding: '0.5rem 1.25rem',
+              fontSize: '0.875rem',
+              gap: '0.375rem',
+            }}
           >
             Get Started
+            <ArrowRight size={15} />
           </Link>
         </div>
 
-        {/* Mobile toggle */}
+        {/* Mobile menu button (ONLY on mobile <=868px) */}
         <button
-          className="md:hidden ml-auto ps-btn ps-btn-ghost"
+          className="neu-mobile-toggle neu-btn-icon"
           onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label="Toggle mobile menu"
+          aria-label="Toggle navigation menu"
         >
-          {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          {mobileOpen ? <X size={18} /> : <Menu size={18} />}
         </button>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile Drawer */}
       {mobileOpen && (
         <div
+          className="neu-inset"
           style={{
-            background: 'white',
-            borderTop: '1px solid var(--ps-border)',
-            padding: '1rem 1.5rem',
+            marginTop: '0.875rem',
+            padding: '1rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem',
           }}
         >
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              style={{
-                display: 'block',
-                padding: '0.75rem 0',
-                color: 'var(--ps-text-primary)',
-                fontWeight: 500,
-                textDecoration: 'none',
-                borderBottom: '1px solid var(--ps-border)',
-              }}
+              className="neu-nav-link"
+              style={{ padding: '0.625rem 0.875rem', display: 'block' }}
               onClick={() => setMobileOpen(false)}
             >
               {link.label}
             </Link>
           ))}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
-            <Link href="/login" className="ps-btn ps-btn-secondary" style={{ justifyContent: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.5rem' }}>
+            <Link
+              href="/login"
+              className="neu-btn neu-btn-secondary"
+              style={{ padding: '0.625rem', fontSize: '0.875rem' }}
+              onClick={() => setMobileOpen(false)}
+            >
               Sign In
             </Link>
-            <Link href="/register" className="ps-btn ps-btn-primary" style={{ justifyContent: 'center' }}>
+            <Link
+              href="/register"
+              className="neu-btn neu-btn-primary"
+              style={{ padding: '0.625rem', fontSize: '0.875rem' }}
+              onClick={() => setMobileOpen(false)}
+            >
               Get Started
             </Link>
           </div>

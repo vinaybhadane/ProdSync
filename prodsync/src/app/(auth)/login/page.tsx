@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, Loader2, ArrowRight, Sparkles, Mail, Lock } from 'lucide-react';
 import { authService } from '@/services/auth.service';
 
 export default function LoginPage() {
@@ -58,24 +58,58 @@ export default function LoginPage() {
   };
 
   return (
-    <>
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 className="text-h2" style={{ marginBottom: '0.5rem' }}>Sign in to ProdSync</h1>
-        <p style={{ color: 'var(--ps-text-muted)', fontSize: '0.9375rem' }}>
+    <div className="neu-raised-xl" style={{ padding: '3rem 2.5rem' }}>
+      {/* Title */}
+      <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+        <div className="neu-badge neu-badge-blue" style={{ marginBottom: '0.875rem' }}>
+          <Sparkles size={13} />
+          <span>Welcome Back</span>
+        </div>
+        <h1
+          style={{
+            fontSize: '1.875rem',
+            fontWeight: 800,
+            color: 'var(--neu-text-title)',
+            letterSpacing: '-0.025em',
+            marginBottom: '0.5rem',
+          }}
+        >
+          Sign in to ProdSync
+        </h1>
+        <p style={{ color: 'var(--neu-text-muted)', fontSize: '0.9375rem', margin: 0 }}>
           Don&apos;t have an account?{' '}
-          <Link href="/register" style={{ color: 'var(--ps-primary)', fontWeight: 500, textDecoration: 'none' }}>
+          <Link
+            href="/register"
+            style={{
+              color: 'var(--neu-primary)',
+              fontWeight: 700,
+              textDecoration: 'none',
+            }}
+          >
             Create one free
           </Link>
         </p>
       </div>
 
-      {/* Social auth */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+      {/* Tactile Social Auth Buttons */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '1rem',
+          marginBottom: '1.75rem',
+        }}
+      >
         <button
+          type="button"
           onClick={handleGoogle}
           disabled={!!socialLoading || loading}
-          className="ps-btn ps-btn-secondary"
-          style={{ width: '100%', justifyContent: 'center', gap: '0.75rem', padding: '0.625rem 1rem' }}
+          className="neu-btn neu-btn-secondary"
+          style={{
+            padding: '0.75rem 1rem',
+            fontSize: '0.875rem',
+            gap: '0.625rem',
+          }}
         >
           {socialLoading === 'google' ? (
             <Loader2 size={18} style={{ animation: 'ps-spin 1s linear infinite' }} />
@@ -87,14 +121,19 @@ export default function LoginPage() {
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
             </svg>
           )}
-          Continue with Google
+          Google
         </button>
 
         <button
+          type="button"
           onClick={handleMicrosoft}
           disabled={!!socialLoading || loading}
-          className="ps-btn ps-btn-secondary"
-          style={{ width: '100%', justifyContent: 'center', gap: '0.75rem', padding: '0.625rem 1rem' }}
+          className="neu-btn neu-btn-secondary"
+          style={{
+            padding: '0.75rem 1rem',
+            fontSize: '0.875rem',
+            gap: '0.625rem',
+          }}
         >
           {socialLoading === 'microsoft' ? (
             <Loader2 size={18} style={{ animation: 'ps-spin 1s linear infinite' }} />
@@ -107,53 +146,68 @@ export default function LoginPage() {
               <path fill="#ffba08" d="M12 12h10v10H12z"/>
             </svg>
           )}
-          Continue with Microsoft
+          Microsoft
         </button>
       </div>
 
-      {/* Divider */}
+      {/* Neumorphic Inset Divider */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: '1rem',
-          marginBottom: '1.5rem',
-          color: 'var(--ps-text-muted)',
+          marginBottom: '1.75rem',
+          color: 'var(--neu-text-muted)',
           fontSize: '0.8125rem',
+          fontWeight: 600,
         }}
       >
-        <div style={{ flex: 1, height: '1px', background: 'var(--ps-border)' }} />
-        or continue with email
-        <div style={{ flex: 1, height: '1px', background: 'var(--ps-border)' }} />
+        <div className="neu-inset-sm" style={{ flex: 1, height: '2px' }} />
+        <span>or sign in with email</span>
+        <div className="neu-inset-sm" style={{ flex: 1, height: '2px' }} />
       </div>
 
-      {/* Email form */}
+      {/* Form */}
       <form onSubmit={handleSubmit} noValidate>
         {error && (
           <div
+            className="neu-inset-sm"
             style={{
               display: 'flex',
               gap: '0.625rem',
-              padding: '0.75rem',
-              background: 'var(--ps-danger-light)',
-              border: '1px solid rgba(239,68,68,0.2)',
-              borderRadius: '8px',
-              marginBottom: '1.25rem',
+              padding: '0.875rem 1rem',
+              marginBottom: '1.5rem',
               fontSize: '0.875rem',
-              color: 'var(--ps-danger-dark)',
+              color: '#dc2626',
+              border: '1px solid rgba(239,68,68,0.3)',
             }}
           >
-            <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
-            {error}
+            <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+            <span>{error}</span>
           </div>
         )}
 
-        <div style={{ marginBottom: '1rem' }}>
-          <label className="ps-label" htmlFor="email">Work Email</label>
+        {/* Email Field */}
+        <div style={{ marginBottom: '1.25rem' }}>
+          <label
+            htmlFor="email"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              fontSize: '0.8125rem',
+              fontWeight: 700,
+              color: 'var(--neu-text-title)',
+              marginBottom: '0.4rem',
+            }}
+          >
+            <Mail size={14} color="#2563eb" />
+            Work Email
+          </label>
           <input
             id="email"
             type="email"
-            className="ps-input"
+            className="neu-input"
             placeholder="name@company.com"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -162,12 +216,32 @@ export default function LoginPage() {
           />
         </div>
 
-        <div style={{ marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
-            <label className="ps-label" htmlFor="password" style={{ margin: 0 }}>Password</label>
+        {/* Password Field */}
+        <div style={{ marginBottom: '1.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+            <label
+              htmlFor="password"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                fontSize: '0.8125rem',
+                fontWeight: 700,
+                color: 'var(--neu-text-title)',
+                margin: 0,
+              }}
+            >
+              <Lock size={14} color="#2563eb" />
+              Password
+            </label>
             <Link
               href="/forgot-password"
-              style={{ fontSize: '0.8125rem', color: 'var(--ps-primary)', textDecoration: 'none', fontWeight: 500 }}
+              style={{
+                fontSize: '0.8125rem',
+                color: 'var(--neu-primary)',
+                textDecoration: 'none',
+                fontWeight: 600,
+              }}
             >
               Forgot password?
             </Link>
@@ -176,26 +250,26 @@ export default function LoginPage() {
             <input
               id="password"
               type={showPassword ? 'text' : 'password'}
-              className="ps-input"
+              className="neu-input"
               placeholder="Enter your password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               required
               autoComplete="current-password"
-              style={{ paddingRight: '2.5rem' }}
+              style={{ paddingRight: '2.75rem' }}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               style={{
                 position: 'absolute',
-                right: '0.75rem',
+                right: '0.875rem',
                 top: '50%',
                 transform: 'translateY(-50%)',
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
-                color: 'var(--ps-text-muted)',
+                color: 'var(--neu-text-muted)',
                 display: 'flex',
                 alignItems: 'center',
               }}
@@ -206,22 +280,31 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {/* Submit Button */}
         <button
           type="submit"
-          className="ps-btn ps-btn-primary"
+          className="neu-btn neu-btn-primary"
           disabled={loading || !!socialLoading}
-          style={{ width: '100%', justifyContent: 'center', padding: '0.625rem 1rem', fontSize: '0.9375rem' }}
+          style={{
+            width: '100%',
+            padding: '0.9375rem 1.5rem',
+            fontSize: '1rem',
+            gap: '0.5rem',
+          }}
         >
           {loading ? (
             <>
-              <Loader2 size={16} style={{ animation: 'ps-spin 1s linear infinite' }} />
+              <Loader2 size={18} style={{ animation: 'ps-spin 1s linear infinite' }} />
               Signing in...
             </>
           ) : (
-            'Sign In'
+            <>
+              Sign In to Platform
+              <ArrowRight size={18} />
+            </>
           )}
         </button>
       </form>
-    </>
+    </div>
   );
 }

@@ -12,16 +12,17 @@ from app.core.config import settings
 from app.core.logging import logger
 
 try:
-    from rapidocr_onnxruntime import RapidOCR
+    from rapidocr_onnxruntime import RapidOCR  # type: ignore[import-untyped,import-not-found]
     RAPIDOCR_AVAILABLE = True
 except ImportError:
     RAPIDOCR_AVAILABLE = False
 
 try:
-    import pytesseract
+    import pytesseract  # type: ignore[import-untyped,import-not-found]
     PYTESSERACT_AVAILABLE = True
 except ImportError:
     PYTESSERACT_AVAILABLE = False
+
 
 try:
     from azure.ai.formrecognizer.aio import DocumentAnalysisClient

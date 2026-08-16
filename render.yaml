@@ -1,0 +1,49 @@
+services:
+  # -------------------------------------------------------------
+  # 1. ProdSync FastAPI Backend Service
+  # -------------------------------------------------------------
+  - type: web
+    name: prodsync-backend
+    runtime: python
+    rootDir: backend
+    plan: free
+    region: oregon
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        value: sqlite:///./prodsync.db
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        value: "*"
+
+  # -------------------------------------------------------------
+  # 2. ProdSync Next.js Frontend Service
+  # -------------------------------------------------------------
+  - type: web
+    name: prodsync-frontend
+    runtime: node
+    rootDir: prodsync
+    plan: free
+    region: oregon
+    buildCommand: "npm install && npm run build"
+    startCommand: "npm start"
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: prodsync-backend
+          property: host
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        value: vinaybhadane06@gmail.com
+      - key: BREVO_SENDER_NAME
+        value: ProdSync AI

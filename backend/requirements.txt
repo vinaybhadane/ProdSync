@@ -25,5 +25,8 @@ opentelemetry-instrumentation-sqlalchemy>=0.49b0
 pandas>=2.2.3
 openpyxl>=3.1.5
 pypdf>=5.1.0
+rapidocr-onnxruntime>=1.4.0
+pytesseract>=0.3.10
 pytest>=8.3.3
 pytest-asyncio>=0.24.0
+

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { AlertCircle, CheckCircle, Loader2, ArrowLeft } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, ArrowLeft, ArrowRight, Sparkles, Mail } from 'lucide-react';
 import { authService } from '@/services/auth.service';
 
 export default function ForgotPasswordPage() {
@@ -28,23 +28,52 @@ export default function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <div style={{ textAlign: 'center' }}>
+      <div className="neu-raised-xl" style={{ padding: '3.5rem 2.5rem', textAlign: 'center' }}>
         <div
+          className="neu-inset"
           style={{
-            width: '64px', height: '64px', borderRadius: '50%',
-            background: 'var(--ps-success-light)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 1.5rem',
+            width: '80px',
+            height: '80px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 1.75rem',
           }}
         >
-          <CheckCircle size={32} color="var(--ps-success)" />
+          <CheckCircle2 size={42} color="#059669" />
         </div>
-        <h2 className="text-h2" style={{ marginBottom: '0.75rem' }}>Check your email</h2>
-        <p style={{ color: 'var(--ps-text-muted)', marginBottom: '2rem', lineHeight: 1.65 }}>
-          We sent a password reset link to <strong style={{ color: 'var(--ps-text-primary)' }}>{email}</strong>.
-          Check your inbox and follow the instructions.
+
+        <div className="neu-badge neu-badge-emerald" style={{ marginBottom: '1rem' }}>
+          <span>Recovery Email Dispatched</span>
+        </div>
+
+        <h2
+          style={{
+            fontSize: '1.75rem',
+            fontWeight: 800,
+            color: 'var(--neu-text-title)',
+            marginBottom: '0.75rem',
+          }}
+        >
+          Check Your Email
+        </h2>
+        <p style={{ color: 'var(--neu-text-body)', marginBottom: '2rem', lineHeight: 1.65, fontSize: '1rem' }}>
+          We sent a password reset link to <strong style={{ color: 'var(--neu-primary)', fontWeight: 800 }}>{email}</strong>.
+          <br />
+          Check your inbox and follow the instructions to reset your password.
         </p>
-        <Link href="/login" className="ps-btn ps-btn-secondary" style={{ display: 'inline-flex', gap: '0.5rem' }}>
+
+        <Link
+          href="/login"
+          className="neu-btn neu-btn-primary"
+          style={{
+            width: '100%',
+            padding: '0.875rem',
+            fontSize: '1rem',
+            gap: '0.5rem',
+          }}
+        >
           <ArrowLeft size={16} />
           Back to Sign In
         </Link>
@@ -53,32 +82,81 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <>
-      <Link href="/login" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', color: 'var(--ps-text-muted)', textDecoration: 'none', marginBottom: '1.5rem' }}>
+    <div className="neu-raised-xl" style={{ padding: '3rem 2.5rem' }}>
+      <Link
+        href="/login"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.375rem',
+          fontSize: '0.8125rem',
+          color: 'var(--neu-text-muted)',
+          textDecoration: 'none',
+          marginBottom: '1.5rem',
+          fontWeight: 700,
+        }}
+      >
         <ArrowLeft size={14} /> Back to Sign In
       </Link>
 
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 className="text-h2" style={{ marginBottom: '0.5rem' }}>Reset your password</h1>
-        <p style={{ color: 'var(--ps-text-muted)', fontSize: '0.9375rem' }}>
-          Enter your work email and we&apos;ll send you a reset link.
+      <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+        <div className="neu-badge neu-badge-blue" style={{ marginBottom: '0.875rem' }}>
+          <Sparkles size={13} />
+          <span>Account Recovery</span>
+        </div>
+        <h1
+          style={{
+            fontSize: '1.875rem',
+            fontWeight: 800,
+            color: 'var(--neu-text-title)',
+            letterSpacing: '-0.025em',
+            marginBottom: '0.5rem',
+          }}
+        >
+          Reset Your Password
+        </h1>
+        <p style={{ color: 'var(--neu-text-muted)', fontSize: '0.9375rem', margin: 0 }}>
+          Enter your work email address and we&apos;ll send you a recovery link.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} noValidate>
         {error && (
-          <div style={{ display: 'flex', gap: '0.625rem', padding: '0.75rem', background: 'var(--ps-danger-light)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', marginBottom: '1.25rem', fontSize: '0.875rem', color: 'var(--ps-danger-dark)' }}>
-            <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
-            {error}
+          <div
+            className="neu-inset-sm"
+            style={{
+              display: 'flex',
+              gap: '0.625rem',
+              padding: '0.875rem 1rem',
+              marginBottom: '1.5rem',
+              fontSize: '0.875rem',
+              color: '#dc2626',
+              border: '1px solid rgba(239,68,68,0.3)',
+            }}
+          >
+            <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+            <span>{error}</span>
           </div>
         )}
 
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label className="ps-label" htmlFor="reset-email">Work Email</label>
+        <div style={{ marginBottom: '1.75rem' }}>
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              fontSize: '0.8125rem',
+              fontWeight: 700,
+              color: 'var(--neu-text-title)',
+              marginBottom: '0.4rem',
+            }}
+          >
+            <Mail size={14} color="#2563eb" />
+            Work Email
+          </label>
           <input
-            id="reset-email"
             type="email"
-            className="ps-input"
+            className="neu-input"
             placeholder="name@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -89,20 +167,28 @@ export default function ForgotPasswordPage() {
 
         <button
           type="submit"
-          className="ps-btn ps-btn-primary"
+          className="neu-btn neu-btn-primary"
           disabled={loading}
-          style={{ width: '100%', justifyContent: 'center', padding: '0.625rem 1rem', fontSize: '0.9375rem' }}
+          style={{
+            width: '100%',
+            padding: '0.9375rem 1.5rem',
+            fontSize: '1rem',
+            gap: '0.5rem',
+          }}
         >
           {loading ? (
             <>
-              <Loader2 size={16} style={{ animation: 'ps-spin 1s linear infinite' }} />
+              <Loader2 size={18} style={{ animation: 'ps-spin 1s linear infinite' }} />
               Sending reset link...
             </>
           ) : (
-            'Send Reset Link'
+            <>
+              Send Reset Link
+              <ArrowRight size={18} />
+            </>
           )}
         </button>
       </form>
-    </>
+    </div>
   );
 }

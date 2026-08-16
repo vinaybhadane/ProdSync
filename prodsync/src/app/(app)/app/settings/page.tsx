@@ -6,12 +6,13 @@ import {
   Plus, Trash2, Copy, Send, RefreshCw, Lock, Eye, EyeOff, X
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { organizationService, OrgMember } from '@/services/organization.service';
 
 const SETTINGS_TABS = [
   { id: 'profile', icon: <User size={16} />, label: 'Profile' },
   { id: 'notifications', icon: <Bell size={16} />, label: 'Notifications' },
   { id: 'security', icon: <Shield size={16} />, label: 'Security' },
-  { id: 'organization', icon: <Building2 size={16} />, label: 'Organization' },
+  { id: 'organization', icon: <Building2 size={16} />, label: 'Organization & Team' },
   { id: 'api', icon: <Key size={16} />, label: 'API & Integrations' },
   { id: 'appearance', icon: <Palette size={16} />, label: 'Appearance' },
 ];
@@ -50,7 +51,9 @@ function Toggle({ checked, onChange, id }: { checked: boolean; onChange: (v: boo
 }
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, organization, refreshOrganization } = useAuth();
+  const orgId = organization?.id || 'org_unilog_enterprise';
+
   const [activeTab, setActiveTab] = useState('profile');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -59,7 +62,7 @@ export default function SettingsPage() {
     displayName: user?.displayName || 'Industrial Content Specialist',
     email: user?.email || 'admin@prodsync.ai',
     title: 'Lead Catalog Engineer',
-    company: 'Unilog Distribution Hub',
+    company: organization?.name || 'Unilog Distribution Hub',
     phone: '+1 (555) 382-9901',
   });
 
@@ -76,20 +79,16 @@ export default function SettingsPage() {
 
   // Organization state
   const [org, setOrg] = useState({
-    name: 'Unilog Industrial Partner',
+    name: organization?.name || 'Unilog Industrial Partner',
     taxId: 'US-EIN-94820194',
-    domain: 'industrial.unilog.com',
+    domain: organization?.domain || 'industrial.unilog.com',
     industry: 'Industrial Supply & Electrical Distribution',
   });
 
-  const [members, setMembers] = useState([
-    { id: 'm1', name: 'Alex Chen', email: 'alex@unilog.com', role: 'Owner', status: 'Active' },
-    { id: 'm2', name: 'Sarah Jenkins', email: 'sarah.j@unilog.com', role: 'Admin', status: 'Active' },
-    { id: 'm3', name: 'David Kumar', email: 'd.kumar@unilog.com', role: 'Editor', status: 'Active' },
-  ]);
+  const [members, setMembers] = useState<OrgMember[]>([]);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('Editor');
+  const [inviteRole, setInviteRole] = useState<'Admin' | 'Editor' | 'Viewer'>('Editor');
 
   // Security state
   const [twoFactor, setTwoFactor] = useState(true);
@@ -112,17 +111,24 @@ export default function SettingsPage() {
   const [theme, setTheme] = useState('light');
   const [compactMode, setCompactMode] = useState(false);
 
-  // Load from LocalStorage
+  // Sync with active organization and load members
   useEffect(() => {
-    try {
-      const savedProfile = localStorage.getItem('prodsync_profile');
-      if (savedProfile) setProfile(JSON.parse(savedProfile));
-      const savedOrg = localStorage.getItem('prodsync_org');
-      if (savedOrg) setOrg(JSON.parse(savedOrg));
-      const savedNotifs = localStorage.getItem('prodsync_notifs');
-      if (savedNotifs) setNotifications(JSON.parse(savedNotifs));
-    } catch {}
-  }, []);
+    if (organization?.id) {
+      setOrg((prev) => ({
+        ...prev,
+        name: organization.name,
+        domain: organization.domain || `${organization.slug}.com`,
+      }));
+      setProfile((prev) => ({
+        ...prev,
+        company: organization.name,
+        displayName: user?.displayName || prev.displayName,
+        email: user?.email || prev.email,
+      }));
+      const orgMembers = organizationService.getMembers(organization.id);
+      setMembers(orgMembers);
+    }
+  }, [organization?.id, organization?.name, organization?.domain, organization?.slug, user?.displayName, user?.email]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -132,8 +138,13 @@ export default function SettingsPage() {
   const handleSave = () => {
     try {
       localStorage.setItem('prodsync_profile', JSON.stringify(profile));
-      localStorage.setItem('prodsync_org', JSON.stringify(org));
       localStorage.setItem('prodsync_notifs', JSON.stringify(notifications));
+      if (organization?.id) {
+        const allOrgs = organizationService.getAllOrganizations();
+        const updated = allOrgs.map((o) => (o.id === organization.id ? { ...o, name: org.name } : o));
+        localStorage.setItem('prodsync_all_orgs', JSON.stringify(updated));
+        refreshOrganization();
+      }
     } catch {}
     showToast('✓ Settings updated and saved successfully.');
   };
@@ -141,17 +152,19 @@ export default function SettingsPage() {
   const handleInviteMember = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail.trim()) return;
-    const newMember = {
-      id: `m_${Date.now()}`,
-      name: inviteEmail.split('@')[0],
-      email: inviteEmail.trim(),
-      role: inviteRole,
-      status: 'Invited',
-    };
-    setMembers((prev) => [...prev, newMember]);
+
+    organizationService.inviteMember(
+      orgId,
+      inviteEmail.trim(),
+      inviteRole,
+      user?.displayName || user?.email || 'Admin'
+    );
+
+    const updatedMembers = organizationService.getMembers(orgId);
+    setMembers(updatedMembers);
     setInviteEmail('');
     setInviteModalOpen(false);
-    showToast(`✓ Invitation sent to ${inviteEmail}`);
+    showToast(`✓ Invitation sent to ${inviteEmail}. They will join ${org.name} upon registration.`);
   };
 
   const handleGenerateApiKey = () => {
@@ -242,7 +255,7 @@ export default function SettingsPage() {
                 <label style={{ fontSize: '0.8125rem', fontWeight: 600, display: 'block', marginBottom: '0.375rem' }}>
                   Role & Permissions
                 </label>
-                <select className="ps-input" value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
+                <select className="ps-input" value={inviteRole} onChange={(e) => setInviteRole(e.target.value as 'Admin' | 'Editor' | 'Viewer')}>
                   <option value="Admin">Admin (Full Access & Settings)</option>
                   <option value="Editor">Editor (Product Editing & AI Approvals)</option>
                   <option value="Viewer">Viewer (Read-Only & Exports)</option>

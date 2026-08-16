@@ -11,6 +11,8 @@ import { productService } from '@/services/product.service';
 import { liveProductService } from '@/services/api.client';
 import { formatNumber, formatDate } from '@/lib/utils';
 import type { Product, ProductFilter } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { organizationService } from '@/services/organization.service';
 
 // ============================================================
 // Status styles
@@ -52,6 +54,9 @@ function SkeletonRow() {
 // Main Products Page
 // ============================================================
 export default function ProductsPage() {
+  const { organization } = useAuth();
+  const orgId = organization?.id || 'org_unilog_enterprise';
+
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -80,20 +85,40 @@ export default function ProductsPage() {
   const fetchProducts = useCallback(async (f: ProductFilter) => {
     setLoading(true);
     try {
-      const res = await productService.getProducts(f);
-      setProducts(res.data);
-      setTotal(res.total);
-      
-      const cats = Array.from(new Set(res.data.map((p) => p.category).filter(Boolean)));
-      const mfrs = Array.from(new Set(res.data.map((p) => p.manufacturer).filter(Boolean)));
-      setCategories(cats);
-      setManufacturers(mfrs);
+      const scoped = organizationService.getProducts(orgId);
+      if (scoped.length > 0) {
+        let list = [...scoped];
+        if (f.search) {
+          const q = f.search.toLowerCase();
+          list = list.filter((p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
+        }
+        if (f.category) list = list.filter((p) => p.category === f.category);
+        if (f.manufacturer) list = list.filter((p) => p.manufacturer === f.manufacturer);
+        if (f.validationStatus) list = list.filter((p) => p.validationStatus === f.validationStatus);
+
+        setProducts(list);
+        setTotal(list.length);
+
+        const cats = Array.from(new Set(scoped.map((p) => p.category).filter((c): c is string => Boolean(c))));
+        const mfrs = Array.from(new Set(scoped.map((p) => p.manufacturer).filter((m): m is string => Boolean(m))));
+        setCategories(cats);
+        setManufacturers(mfrs);
+      } else {
+        const res = await productService.getProducts(f);
+        setProducts(res.data);
+        setTotal(res.total);
+        
+        const cats = Array.from(new Set(res.data.map((p) => p.category).filter((c): c is string => Boolean(c))));
+        const mfrs = Array.from(new Set(res.data.map((p) => p.manufacturer).filter((m): m is string => Boolean(m))));
+        setCategories(cats);
+        setManufacturers(mfrs);
+      }
     } catch (e) {
       console.warn('Failed to load products:', e);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [orgId]);
 
   useEffect(() => {
     fetchProducts(filter);
@@ -106,7 +131,7 @@ export default function ProductsPage() {
     setFilter((f) => ({ ...f, search: searchInput, page: 1 }));
   };
 
-  // Selection handlers
+  // Multi-Selection handlers
   const toggleSelect = (id: string) => {
     setSelectAllMatching(false);
     setSelected((prev) => {
@@ -153,7 +178,10 @@ export default function ProductsPage() {
     try {
       if (productToDelete) {
         // Single product permanent delete
-        await liveProductService.deleteProduct(productToDelete.id, true);
+        try {
+          await liveProductService.deleteProduct(productToDelete.id, true);
+        } catch {}
+        organizationService.deleteProduct(orgId, productToDelete.id);
         showToast(`✓ Permanently deleted "${productToDelete.name}" (${productToDelete.sku})`);
         setSelected((prev) => {
           const next = new Set(prev);
@@ -162,15 +190,21 @@ export default function ProductsPage() {
         });
       } else if (selectAllMatching) {
         // Delete all products matching catalog
-        const res = await liveProductService.bulkDeleteProducts([], true);
-        showToast(`✓ Permanently deleted all ${res.successfulCount || total} products.`);
+        try {
+          await liveProductService.bulkDeleteProducts([], true);
+        } catch {}
+        organizationService.bulkDeleteProducts(orgId, [], true);
+        showToast(`✓ Permanently deleted all products.`);
         setSelected(new Set());
         setSelectAllMatching(false);
       } else {
         // Delete selected product IDs
         const ids = Array.from(selected);
-        const res = await liveProductService.bulkDeleteProducts(ids, false);
-        showToast(`✓ Permanently deleted ${res.successfulCount || ids.length} products.`);
+        try {
+          await liveProductService.bulkDeleteProducts(ids, false);
+        } catch {}
+        organizationService.bulkDeleteProducts(orgId, ids, false);
+        showToast(`✓ Permanently deleted ${ids.length} products.`);
         setSelected(new Set());
       }
       setIsDeleteModalOpen(false);

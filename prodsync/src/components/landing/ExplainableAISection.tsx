@@ -1,324 +1,246 @@
 'use client';
 
 import React, { useState } from 'react';
-import { CheckCircle, AlertTriangle, Brain, FileText, ChevronDown, ChevronRight } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Brain, FileText, ChevronDown, ChevronRight, Sparkles, Shield, Eye } from 'lucide-react';
 
 const SAMPLE_ATTRS = [
   {
     name: 'Operating Temperature',
     value: '-20°C to 80°C',
     status: 'verified',
-    confidence: 94,
-    source: 'Technical Datasheet',
-    sourceType: 'pdf',
-    aiReason: "Value extracted directly from the manufacturer's technical specification section, page 4, section 3.2.",
+    confidence: 96,
+    source: 'Manufacturer Datasheet',
+    sourceType: 'PDF Page 4, Sec 3.2',
+    aiReason: 'Value extracted directly from tabular specification matrix. Unit converted from Kelvin/Celsius to ISO standard range with 100% confidence.',
   },
   {
-    name: 'Weight',
-    value: '18.5 kg',
-    status: 'ai_suggested',
-    confidence: 83,
-    source: 'Similar Product Specs',
-    sourceType: 'catalog',
-    aiReason: 'Value inferred from related product specifications in the HP-4000 series. Similar models range from 17.8–19.2 kg.',
+    name: 'Nominal Input Voltage',
+    value: '380 - 480 V AC',
+    status: 'verified',
+    confidence: 94,
+    source: 'Electrical Manual',
+    sourceType: 'PDF Page 12, Table 2',
+    aiReason: 'Cross-validated across 2 independent vendor sheets. Matches industrial standard 3-phase European/US grid parameters.',
   },
   {
     name: 'Operating Pressure',
     value: '10 bar / 12 bar',
     status: 'needs_review',
-    confidence: 52,
-    source: 'Multiple Sources',
-    sourceType: 'pdf',
-    aiReason: 'Conflict detected between Source A (10 bar, Technical Datasheet) and Source B (12 bar, Product Catalog). Manual review required.',
+    confidence: 54,
+    source: 'Conflicting Sources',
+    sourceType: 'Datasheet A vs Catalog B',
+    aiReason: 'Conflict detected: Datasheet A states 10 bar continuous rating, whereas Catalog B lists 12 bar peak burst limit. Highlighted for 1-click human verification.',
+  },
+  {
+    name: 'Protection Class (Ingress)',
+    value: 'IP66 / NEMA 4X',
+    status: 'ai_suggested',
+    confidence: 88,
+    source: 'Taxonomy Inference',
+    sourceType: 'Contextual Model Matrix',
+    aiReason: 'Inferred based on silicone gasket seal specs and stainless steel enclosure material. Recommended for heavy washdown environments.',
   },
 ];
 
-const statusConfig = {
-  verified: { label: 'Verified', color: 'var(--ps-success)', bg: 'var(--ps-success-light)', icon: <CheckCircle size={14} /> },
-  ai_suggested: { label: 'AI Suggested', color: 'var(--ps-ai)', bg: 'var(--ps-ai-light)', icon: <Brain size={14} /> },
-  needs_review: { label: 'Needs Review', color: 'var(--ps-warning-dark)', bg: 'var(--ps-warning-light)', icon: <AlertTriangle size={14} /> },
+const statusStyles = {
+  verified: { label: 'Verified', badge: 'neu-badge-emerald', icon: <CheckCircle size={14} color="#059669" /> },
+  ai_suggested: { label: 'AI Suggested', badge: 'neu-badge-purple', icon: <Brain size={14} color="#7c3aed" /> },
+  needs_review: { label: 'Needs Review', badge: 'neu-badge-amber', icon: <AlertTriangle size={14} color="#d97706" /> },
 };
 
 export default function ExplainableAISection() {
-  const [expanded, setExpanded] = useState<number | null>(0);
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
 
   return (
-    <section
-      style={{
-        padding: '6rem 1.5rem',
-        background: 'var(--ps-slate-900)',
-      }}
-    >
+    <section style={{ padding: '5rem 1.5rem', position: 'relative' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Section label */}
-        <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
-          <span
+        {/* Badge & Title */}
+        <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
+          <div className="neu-badge neu-badge-blue" style={{ marginBottom: '1rem' }}>
+            <Eye size={14} />
+            <span>Explainable Provenance</span>
+          </div>
+          <h2
             style={{
-              display: 'inline-block',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              color: 'var(--ps-primary-light)',
-              background: 'rgba(59,130,246,0.15)',
-              padding: '0.25rem 0.75rem',
-              borderRadius: '20px',
+              fontSize: 'clamp(1.75rem, 3.5vw, 2.75rem)',
+              fontWeight: 800,
+              color: 'var(--neu-text-title)',
+              letterSpacing: '-0.025em',
+              marginBottom: '1rem',
             }}
           >
-            Explainable AI
-          </span>
+            Every Value Has a Source.{' '}
+            <span
+              style={{
+                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              Every Suggestion Has a Reason.
+            </span>
+          </h2>
+          <p
+            style={{
+              fontSize: '1.0625rem',
+              color: 'var(--neu-text-body)',
+              maxWidth: '640px',
+              margin: '0 auto',
+              lineHeight: 1.6,
+            }}
+          >
+            ProdSync never acts as a black box. Each extracted field provides exact document page
+            coordinates, confidence percentages, and transparent reasoning.
+          </p>
         </div>
 
-        <h2
-          className="text-h1"
-          style={{
-            textAlign: 'center',
-            marginBottom: '1rem',
-            color: 'white',
-          }}
-        >
-          AI That{' '}
-          <span style={{ color: 'var(--ps-primary-light)' }}>Explains Its Decisions</span>
-        </h2>
-
-        <p
-          className="text-body"
-          style={{
-            textAlign: 'center',
-            color: 'var(--ps-slate-400)',
-            maxWidth: '560px',
-            margin: '0 auto 3.5rem',
-          }}
-        >
-          Every AI decision comes with a clear, user-facing explanation. No black boxes —
-          every value shows its source, confidence, and reasoning.
-        </p>
-
+        {/* Interactive Attribute Inspector Deck */}
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '3rem',
-            alignItems: 'start',
+            gridTemplateColumns: '1.1fr 0.9fr',
+            gap: '2.5rem',
+            alignItems: 'flex-start',
           }}
-          className="xai-grid"
+          className="neu-hero-grid"
         >
-          {/* Left — attribute cards */}
+          {/* Left: Interactive List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {SAMPLE_ATTRS.map((attr, i) => {
-              const status = statusConfig[attr.status as keyof typeof statusConfig];
-              const isExpanded = expanded === i;
+            {SAMPLE_ATTRS.map((attr, idx) => {
+              const isSelected = expandedIndex === idx;
+              const meta = statusStyles[attr.status as keyof typeof statusStyles];
 
               return (
                 <div
                   key={attr.name}
+                  onClick={() => setExpandedIndex(idx)}
+                  className={isSelected ? 'neu-inset' : 'neu-card'}
                   style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: '12px',
-                    overflow: 'hidden',
-                    transition: 'border-color 0.2s ease',
-                    borderColor: isExpanded ? 'rgba(59,130,246,0.4)' : undefined,
+                    padding: '1.25rem 1.5rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.25s ease',
                   }}
                 >
-                  <button
-                    style={{
-                      width: '100%',
-                      padding: '1rem 1.25rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                    }}
-                    onClick={() => setExpanded(isExpanded ? null : i)}
-                    aria-expanded={isExpanded}
-                  >
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'white', marginBottom: '0.25rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                      {meta.icon}
+                      <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--neu-text-title)' }}>
                         {attr.name}
-                      </div>
-                      <div style={{ fontSize: '1rem', fontWeight: 700, color: 'white' }}>
-                        {attr.value}
-                      </div>
+                      </span>
                     </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
-                      <div
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.3rem',
-                          padding: '0.25rem 0.625rem',
-                          borderRadius: '20px',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          background: `${status.color}20`,
-                          color: status.color,
-                        }}
-                      >
-                        {status.icon}
-                        {status.label}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--ps-slate-400)', fontWeight: 600 }}>
-                        {attr.confidence}% confident
-                      </div>
+                    <div className={`neu-badge ${meta.badge}`} style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem' }}>
+                      {meta.label}
                     </div>
+                  </div>
 
-                    <div style={{ color: 'var(--ps-slate-500)', flexShrink: 0 }}>
-                      {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--neu-primary)' }}>
+                      {attr.value}
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--neu-text-muted)' }}>
+                        {attr.confidence}% Confidence
+                      </span>
+                      {isSelected ? <ChevronDown size={18} color="#2563eb" /> : <ChevronRight size={18} color="#94a3b8" />}
                     </div>
-                  </button>
-
-                  {isExpanded && (
-                    <div
-                      style={{
-                        padding: '1rem 1.25rem',
-                        borderTop: '1px solid rgba(255,255,255,0.06)',
-                        animation: 'ps-fade-in 0.2s ease',
-                      }}
-                    >
-                      {/* Source */}
-                      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                        <FileText size={14} color="var(--ps-slate-500)" style={{ marginTop: '1px', flexShrink: 0 }} />
-                        <div>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--ps-slate-500)', marginRight: '0.5rem' }}>Source:</span>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--ps-slate-300)' }}>
-                            {attr.source}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* AI Reasoning */}
-                      <div
-                        style={{
-                          background: 'rgba(139,92,246,0.08)',
-                          border: '1px solid rgba(139,92,246,0.2)',
-                          borderRadius: '8px',
-                          padding: '0.75rem',
-                          display: 'flex',
-                          gap: '0.5rem',
-                        }}
-                      >
-                        <Brain size={14} color="var(--ps-ai)" style={{ marginTop: '1px', flexShrink: 0 }} />
-                        <div>
-                          <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--ps-ai)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                            AI Reasoning
-                          </div>
-                          <div style={{ fontSize: '0.8125rem', color: 'var(--ps-slate-300)', lineHeight: '1.5' }}>
-                            &ldquo;{attr.aiReason}&rdquo;
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Confidence bar */}
-                      <div style={{ marginTop: '0.75rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--ps-slate-500)', marginBottom: '0.375rem' }}>
-                          <span>Confidence</span>
-                          <span style={{ fontWeight: 600, color: status.color }}>{attr.confidence}%</span>
-                        </div>
-                        <div className="ps-progress" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                          <div
-                            className="ps-progress-bar"
-                            style={{
-                              width: `${attr.confidence}%`,
-                              background: status.color,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </div>
               );
             })}
           </div>
 
-          {/* Right — explainer */}
-          <div>
+          {/* Right: Detailed Neumorphic Audit Inspection Panel */}
+          {expandedIndex !== null && (
             <div
+              className="neu-raised-lg"
               style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: '16px',
                 padding: '2rem',
-                marginBottom: '1.5rem',
+                position: 'sticky',
+                top: '6rem',
               }}
             >
-              <h3 className="text-h3" style={{ color: 'white', marginBottom: '1.5rem' }}>
-                Every decision is transparent
-              </h3>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '1.25rem',
+                  paddingBottom: '0.75rem',
+                  borderBottom: '1px solid rgba(255,255,255,0.8)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Shield size={18} color="#2563eb" />
+                  <span style={{ fontSize: '0.9375rem', fontWeight: 800, color: 'var(--neu-text-title)' }}>
+                    Provenance Audit Trail
+                  </span>
+                </div>
+                <div className="neu-badge neu-badge-blue" style={{ fontSize: '0.75rem' }}>
+                  Live Verified
+                </div>
+              </div>
 
-              {[
-                {
-                  indicator: '●',
-                  color: 'var(--ps-success)',
-                  title: 'Verified',
-                  desc: 'Matched and confirmed across multiple source documents.',
-                },
-                {
-                  indicator: '●',
-                  color: 'var(--ps-ai)',
-                  title: 'AI Suggested',
-                  desc: 'AI-generated value based on related data — pending human review.',
-                },
-                {
-                  indicator: '●',
-                  color: 'var(--ps-warning)',
-                  title: 'Needs Review',
-                  desc: 'Conflicting values detected. Human decision required.',
-                },
-              ].map((item) => (
-                <div key={item.title} style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem' }}>
+              {/* Selected Parameter Header */}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <div style={{ fontSize: '0.8125rem', color: 'var(--neu-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+                  Attribute
+                </div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--neu-text-title)' }}>
+                  {SAMPLE_ATTRS[expandedIndex].name}
+                </div>
+                <div style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--neu-primary)', marginTop: '0.25rem' }}>
+                  {SAMPLE_ATTRS[expandedIndex].value}
+                </div>
+              </div>
+
+              {/* Source Origin Well */}
+              <div className="neu-inset" style={{ padding: '1rem', marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                  <FileText size={15} color="#2563eb" />
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--neu-text-title)' }}>
+                    {SAMPLE_ATTRS[expandedIndex].source}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--neu-text-muted)' }}>
+                  Location: <strong>{SAMPLE_ATTRS[expandedIndex].sourceType}</strong>
+                </div>
+              </div>
+
+              {/* Explainable AI Reasoning */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <div style={{ fontSize: '0.8125rem', color: 'var(--neu-text-muted)', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <Sparkles size={14} color="#7c3aed" />
+                  AI Rationale & Validation Logic
+                </div>
+                <p style={{ fontSize: '0.875rem', color: 'var(--neu-text-body)', lineHeight: 1.6, margin: 0 }}>
+                  {SAMPLE_ATTRS[expandedIndex].aiReason}
+                </p>
+              </div>
+
+              {/* Confidence Meter */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                  <span style={{ color: 'var(--neu-text-muted)' }}>Confidence Metric</span>
+                  <span style={{ color: 'var(--neu-primary)' }}>{SAMPLE_ATTRS[expandedIndex].confidence}%</span>
+                </div>
+                <div className="neu-inset-sm" style={{ height: '10px', padding: '2px', overflow: 'hidden' }}>
                   <div
                     style={{
-                      width: '10px',
-                      height: '10px',
-                      borderRadius: '50%',
-                      background: item.color,
-                      marginTop: '5px',
-                      flexShrink: 0,
+                      height: '100%',
+                      width: `${SAMPLE_ATTRS[expandedIndex].confidence}%`,
+                      background:
+                        SAMPLE_ATTRS[expandedIndex].confidence > 80
+                          ? 'linear-gradient(90deg, #10b981, #059669)'
+                          : 'linear-gradient(90deg, #f59e0b, #d97706)',
+                      borderRadius: '6px',
                     }}
                   />
-                  <div>
-                    <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'white', marginBottom: '0.25rem' }}>
-                      {item.title}
-                    </div>
-                    <div style={{ fontSize: '0.875rem', color: 'var(--ps-slate-400)', lineHeight: 1.5 }}>
-                      {item.desc}
-                    </div>
-                  </div>
                 </div>
-              ))}
-            </div>
-
-            <div
-              style={{
-                background: 'rgba(37,99,235,0.1)',
-                border: '1px solid rgba(37,99,235,0.25)',
-                borderRadius: '12px',
-                padding: '1.25rem',
-              }}
-            >
-              <div style={{ fontSize: '0.875rem', color: 'var(--ps-slate-300)', lineHeight: 1.6 }}>
-                <strong style={{ color: 'white' }}>Human-in-the-Loop by design.</strong>{' '}
-                Important product data always requires human approval before becoming trusted.
-                AI suggests — you decide.
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
-
-      <style>{`
-        @media (max-width: 900px) {
-          .xai-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
     </section>
   );
 }

@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import {
   Search, Bell, Menu, CheckCircle, AlertTriangle, XCircle, Info, X, Trash2, ExternalLink,
 } from 'lucide-react';
-import { liveNotificationService } from '@/services/api.client';
 import { formatRelativeTime } from '@/lib/utils';
 import type { AppNotification } from '@/types';
+
+import { useAuth } from '@/contexts/AuthContext';
+import { organizationService } from '@/services/organization.service';
 
 // localStorage key: timestamp of when user last opened the notification panel
 const LAST_SEEN_KEY = 'ps_notif_last_seen';
@@ -26,6 +28,9 @@ const notifIconConfig: Record<string, { icon: React.ReactNode; color: string; bg
 
 export default function Topbar({ onMobileMenuToggle, pageTitle }: TopbarProps) {
   const router = useRouter();
+  const { organization } = useAuth();
+  const orgId = organization?.id || 'org_unilog_enterprise';
+
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [notifOpen, setNotifOpen] = useState(false);
@@ -38,12 +43,12 @@ export default function Topbar({ onMobileMenuToggle, pageTitle }: TopbarProps) {
 
   const getLastSeen = (): string | null => {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem(LAST_SEEN_KEY);
+    return localStorage.getItem(`${LAST_SEEN_KEY}_${orgId}`);
   };
 
   const setLastSeen = () => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(LAST_SEEN_KEY, new Date().toISOString());
+      localStorage.setItem(`${LAST_SEEN_KEY}_${orgId}`, new Date().toISOString());
     }
   };
 
@@ -66,16 +71,16 @@ export default function Topbar({ onMobileMenuToggle, pageTitle }: TopbarProps) {
 
   // ─── data loading ──────────────────────────────────────────────────────────
 
-  const loadNotifications = useCallback(async () => {
-    const data = await liveNotificationService.getNotifications();
+  const loadNotifications = useCallback(() => {
+    const data = organizationService.getNotifications(orgId);
     setNotifications(data);
     computeHasNew(data);
-  }, []);
+  }, [orgId]);
 
   useEffect(() => {
     loadNotifications();
-    // Poll every 15 seconds for new notifications
-    const interval = setInterval(loadNotifications, 15_000);
+    // Poll every 10 seconds for new notifications
+    const interval = setInterval(loadNotifications, 10_000);
     return () => clearInterval(interval);
   }, [loadNotifications]);
 
@@ -128,16 +133,22 @@ export default function Topbar({ onMobileMenuToggle, pageTitle }: TopbarProps) {
 
   // ─── actions ──────────────────────────────────────────────────────────────
 
-  const markAllRead = async () => {
-    await liveNotificationService.markAllRead();
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const markAllRead = () => {
+    const updated = notifications.map((n) => ({ ...n, read: true }));
+    setNotifications(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`prodsync_notifications_${orgId}`, JSON.stringify(updated));
+    }
     setHasNew(false);
   };
 
-  const handleNotifClick = async (notif: AppNotification) => {
+  const handleNotifClick = (notif: AppNotification) => {
     if (!notif.read) {
-      await liveNotificationService.markRead(notif.id);
-      setNotifications((prev) => prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n)));
+      const updated = notifications.map((n) => (n.id === notif.id ? { ...n, read: true } : n));
+      setNotifications(updated);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`prodsync_notifications_${orgId}`, JSON.stringify(updated));
+      }
     }
     if (notif.link) {
       router.push(notif.link);
@@ -145,10 +156,13 @@ export default function Topbar({ onMobileMenuToggle, pageTitle }: TopbarProps) {
     }
   };
 
-  const handleDismiss = async (e: React.MouseEvent, id: string) => {
+  const handleDismiss = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    await liveNotificationService.dismiss(id);
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    const updated = notifications.filter((n) => n.id !== id);
+    setNotifications(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`prodsync_notifications_${orgId}`, JSON.stringify(updated));
+    }
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;

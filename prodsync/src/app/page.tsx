@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import './neumorphism.css';
 import Navbar from '@/components/landing/Navbar';
 import Footer from '@/components/landing/Footer';
 import HeroSection from '@/components/landing/HeroSection';
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <>
+    <div className="neu-page-wrapper">
       <Navbar />
       <main>
         <HeroSection />
@@ -27,6 +28,6 @@ export default function HomePage() {
         <CTASection />
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

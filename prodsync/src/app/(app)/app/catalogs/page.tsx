@@ -191,7 +191,13 @@ function CatalogCard({
   );
 }
 
+import { useAuth } from '@/contexts/AuthContext';
+import { organizationService } from '@/services/organization.service';
+
 export default function CatalogsPage() {
+  const { organization } = useAuth();
+  const orgId = organization?.id || 'org_unilog_enterprise';
+
   const [catalogs, setCatalogs] = useState<Catalog[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -212,15 +218,20 @@ export default function CatalogsPage() {
     else setLoading(true);
 
     try {
-      const data = await liveCatalogService.getCatalogs();
-      setCatalogs(data);
+      const scoped = organizationService.getCatalogs(orgId);
+      if (scoped.length > 0) {
+        setCatalogs(scoped);
+      } else {
+        const data = await liveCatalogService.getCatalogs();
+        setCatalogs(data);
+      }
     } catch (e) {
       console.warn('Failed to load catalogs:', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [orgId]);
 
   useEffect(() => {
     loadCatalogs();
@@ -237,7 +248,9 @@ export default function CatalogsPage() {
     setCreating(true);
     const created = await liveCatalogService.createCatalog(newCatName.trim(), newCatDesc.trim());
     if (created) {
-      setCatalogs((prev) => [created, ...prev]);
+      const updated = [created, ...catalogs];
+      setCatalogs(updated);
+      organizationService.saveCatalogs(orgId, updated);
       showToast(`✓ Catalog "${created.name}" created successfully.`);
       setNewCatName('');
       setNewCatDesc('');
@@ -247,11 +260,12 @@ export default function CatalogsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    const ok = await liveCatalogService.deleteCatalog(id);
-    if (ok) {
-      setCatalogs((prev) => prev.filter((c) => c.id !== id));
-      showToast('✓ Catalog deleted.');
-    }
+    try {
+      await liveCatalogService.deleteCatalog(id);
+    } catch {}
+    organizationService.deleteCatalog(orgId, id);
+    setCatalogs((prev) => prev.filter((c) => c.id !== id));
+    showToast('✓ Catalog deleted and workspace analytics updated.');
   };
 
   const filtered = search

@@ -61,7 +61,13 @@ const typeConfig: Record<string, { icon: React.ReactNode; color: string; bg: str
   },
 };
 
+import { useAuth } from '@/contexts/AuthContext';
+import { organizationService } from '@/services/organization.service';
+
 export default function ActivityPage() {
+  const { organization } = useAuth();
+  const orgId = organization?.id || 'org_unilog_enterprise';
+
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -69,6 +75,12 @@ export default function ActivityPage() {
 
   const loadActivities = async () => {
     setLoading(true);
+    const orgEvents = organizationService.getActivity(orgId);
+    if (orgEvents.length > 0) {
+      setEvents(orgEvents);
+      setLoading(false);
+      return;
+    }
     const data = await liveActivityService.getActivities(filter);
     setEvents(data);
     setLoading(false);
@@ -76,7 +88,7 @@ export default function ActivityPage() {
 
   useEffect(() => {
     loadActivities();
-  }, [filter]);
+  }, [filter, orgId]);
 
   const filtered = events.filter((e) => {
     const matchesFilter =

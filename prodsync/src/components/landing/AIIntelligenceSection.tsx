@@ -1,202 +1,211 @@
 'use client';
 
-import React from 'react';
-import { CheckCircle, Loader2, Circle, Brain, ArrowDown } from 'lucide-react';
+import React, { useState } from 'react';
+import { Brain, CheckCircle2, Loader2, Cpu, ShieldCheck, ArrowRight, Activity } from 'lucide-react';
+import Link from 'next/link';
 
 const STAGES = [
-  { label: 'Document Received', status: 'done', detail: 'HP-4500_datasheet.pdf (2.4 MB)' },
-  { label: 'Text Extraction', status: 'done', detail: '847 text blocks extracted' },
-  { label: 'Product Detection', status: 'done', detail: '1 product identified' },
-  { label: 'Attribute Extraction', status: 'done', detail: '14 attributes detected' },
-  { label: 'Normalization', status: 'done', detail: 'Units and formats standardized' },
-  { label: 'Validation Engine', status: 'active', detail: 'Cross-checking 3 sources...' },
-  { label: 'AI Enrichment', status: 'pending', detail: 'Pending validation completion' },
-  { label: 'Final Structuring', status: 'pending', detail: 'Awaiting enrichment results' },
+  { label: 'Document Ingestion', status: 'done', detail: 'RapidOCR & PDF Vectorization', time: '140ms' },
+  { label: 'Product Entity Detection', status: 'done', detail: 'Identified Series & Model SKU', time: '210ms' },
+  { label: 'Attribute Extraction', status: 'done', detail: '18 Technical Parameters detected', time: '380ms' },
+  { label: 'Unit & Text Normalization', status: 'done', detail: 'Unified DIN / ISO / ANSI standards', time: '85ms' },
+  { label: 'Deterministic Validation', status: 'active', detail: 'Cross-checking 3 vendor sources...', time: 'Live' },
+  { label: 'Confidence Quality Scorer', status: 'pending', detail: 'Mathematical 0-100% calibration', time: 'Queued' },
+  { label: 'Field-Level Provenance', status: 'pending', detail: 'Bounding-box coordinate tagging', time: 'Queued' },
 ];
 
 export default function AIIntelligenceSection() {
+  const [selectedStage, setSelectedStage] = useState(4);
+
   return (
-    <section
-      style={{
-        padding: '6rem 1.5rem',
-        background: 'var(--ps-bg)',
-      }}
-    >
+    <section style={{ padding: '5rem 1.5rem', position: 'relative' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '4rem',
+            gridTemplateColumns: '1fr 1.1fr',
+            gap: '3.5rem',
             alignItems: 'center',
           }}
-          className="ai-intel-grid"
+          className="neu-hero-grid"
         >
-          {/* Left — content */}
+          {/* Left Column — Pipeline Story */}
           <div>
-            <div style={{ marginBottom: '1rem' }}>
-              <span
-                style={{
-                  display: 'inline-block',
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
-                  color: 'var(--ps-ai)',
-                  background: 'var(--ps-ai-light)',
-                  padding: '0.25rem 0.75rem',
-                  borderRadius: '20px',
-                }}
-              >
-                AI Intelligence
-              </span>
+            <div className="neu-badge neu-badge-purple" style={{ marginBottom: '1rem' }}>
+              <Brain size={14} />
+              <span>Multi-Stage Intelligence</span>
             </div>
 
             <h2
-              className="text-h1"
-              style={{ marginBottom: '1.25rem', color: 'var(--ps-text-primary)' }}
+              style={{
+                fontSize: 'clamp(1.75rem, 3.5vw, 2.75rem)',
+                fontWeight: 800,
+                color: 'var(--neu-text-title)',
+                letterSpacing: '-0.025em',
+                lineHeight: 1.2,
+                marginBottom: '1.25rem',
+              }}
             >
-              A Multi-Stage AI Pipeline Built for{' '}
-              <span style={{ color: 'var(--ps-ai)' }}>Industrial Complexity</span>
+              Built for Industrial Complexity, Not Generic Text
             </h2>
 
             <p
-              className="text-body"
-              style={{ color: 'var(--ps-text-secondary)', marginBottom: '2rem' }}
+              style={{
+                fontSize: '1.0625rem',
+                color: 'var(--neu-text-body)',
+                lineHeight: 1.6,
+                marginBottom: '2rem',
+              }}
             >
-              Every product document goes through a sophisticated, transparent AI pipeline —
-              from raw extraction to structured, validated product intelligence.
+              Unlike generic chatbots that hallucinate numbers, ProdSync pairs Azure OpenAI
+              with local ONNX OCR engines and mathematical validation rules to guarantee
+              engineering-grade data integrity.
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {[
-                { title: 'Multi-source extraction', desc: 'Processes PDFs, URLs, CSVs, images, and more simultaneously.' },
-                { title: 'Cross-source validation', desc: 'Detects conflicts and inconsistencies across different documents.' },
-                { title: 'Contextual enrichment', desc: 'Fills gaps using AI trained on technical specifications.' },
-              ].map((item) => (
-                <div key={item.title} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
-                  <CheckCircle size={18} color="var(--ps-success)" style={{ marginTop: '2px', flexShrink: 0 }} />
-                  <div>
-                    <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--ps-text-primary)' }}>
-                      {item.title}
-                    </div>
-                    <div style={{ fontSize: '0.875rem', color: 'var(--ps-text-muted)' }}>
-                      {item.desc}
-                    </div>
-                  </div>
+            {/* 3 Pillars in tactile cards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
+              <div className="neu-card" style={{ padding: '1rem 1.25rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <div className="neu-inset-sm" style={{ width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Cpu size={20} color="#7c3aed" />
                 </div>
-              ))}
+                <div>
+                  <h4 style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--neu-text-title)', marginBottom: '0.15rem' }}>
+                    Dual OCR & LLM Hybrid Stack
+                  </h4>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--neu-text-muted)', margin: 0 }}>
+                    Local RapidOCR for fast tabular extraction + GPT-4o for contextual entity disambiguation.
+                  </p>
+                </div>
+              </div>
+
+              <div className="neu-card" style={{ padding: '1rem 1.25rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <div className="neu-inset-sm" style={{ width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <ShieldCheck size={20} color="#059669" />
+                </div>
+                <div>
+                  <h4 style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--neu-text-title)', marginBottom: '0.15rem' }}>
+                    Zero Hallucination Guardrails
+                  </h4>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--neu-text-muted)', margin: 0 }}>
+                    Physical constraints (temperatures, voltages, dimensions) validated deterministically.
+                  </p>
+                </div>
+              </div>
             </div>
+
+            <Link
+              href="/register"
+              className="neu-btn neu-btn-primary"
+              style={{
+                padding: '0.75rem 1.75rem',
+                fontSize: '0.9375rem',
+                gap: '0.5rem',
+              }}
+            >
+              Test Your Datasheets
+              <ArrowRight size={16} />
+            </Link>
           </div>
 
-          {/* Right — processing visualization */}
-          <div className="ps-card" style={{ padding: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
+          {/* Right Column — Tactile Multi-Stage Processing Deck */}
+          <div>
+            <div className="neu-raised-lg" style={{ padding: '2rem' }}>
               <div
                 style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '10px',
-                  background: 'var(--ps-ai-light)',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--ps-ai)',
+                  justifyContent: 'space-between',
+                  marginBottom: '1.25rem',
+                  paddingBottom: '0.875rem',
+                  borderBottom: '1px solid rgba(255,255,255,0.8)',
                 }}
               >
-                <Brain size={18} />
-              </div>
-              <div>
-                <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--ps-text-primary)' }}>
-                  AI Processing Pipeline
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Activity size={18} color="#7c3aed" />
+                  <span style={{ fontSize: '0.9375rem', fontWeight: 800, color: 'var(--neu-text-title)' }}>
+                    Autonomous Execution Deck
+                  </span>
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--ps-text-muted)' }}>
-                  HP-4500 Technical Datasheet
+                <div className="neu-badge neu-badge-purple" style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem' }}>
+                  Pipeline Active
                 </div>
               </div>
-              <span className="ps-badge ps-badge-ai" style={{ marginLeft: 'auto', fontSize: '0.6875rem' }}>
-                Processing
-              </span>
-            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              {STAGES.map((stage, i) => (
-                <div
-                  key={stage.label}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.625rem 0.75rem',
-                    borderRadius: '8px',
-                    background: stage.status === 'active' ? 'var(--ps-ai-light)' : 'transparent',
-                    border: stage.status === 'active' ? '1px solid rgba(139,92,246,0.2)' : '1px solid transparent',
-                    animation: `ps-fade-in 0.3s ease ${i * 0.05}s both`,
-                  }}
-                >
-                  <div style={{ flexShrink: 0 }}>
-                    {stage.status === 'done' && <CheckCircle size={16} color="var(--ps-success)" />}
-                    {stage.status === 'active' && (
-                      <Loader2 size={16} color="var(--ps-ai)" style={{ animation: 'ps-spin 1s linear infinite' }} />
-                    )}
-                    {stage.status === 'pending' && <Circle size={16} color="var(--ps-slate-300)" />}
-                  </div>
-                  <div style={{ flex: 1 }}>
+              {/* Interactive Stage Flow */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                {STAGES.map((stage, idx) => {
+                  const isActive = idx === selectedStage;
+                  const isDone = stage.status === 'done';
+
+                  return (
                     <div
+                      key={stage.label}
+                      onClick={() => setSelectedStage(idx)}
+                      className={isActive ? 'neu-inset' : 'neu-card'}
                       style={{
-                        fontSize: '0.8125rem',
-                        fontWeight: stage.status === 'active' ? 600 : 500,
-                        color: stage.status === 'done'
-                          ? 'var(--ps-text-primary)'
-                          : stage.status === 'active'
-                          ? 'var(--ps-ai)'
-                          : 'var(--ps-text-muted)',
+                        padding: '0.75rem 1rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
                       }}
                     >
-                      {stage.label}
-                    </div>
-                    {stage.status !== 'pending' && (
-                      <div style={{ fontSize: '0.6875rem', color: 'var(--ps-text-muted)' }}>
-                        {stage.detail}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        {isDone ? (
+                          <div className="neu-dot neu-dot-active" />
+                        ) : stage.status === 'active' ? (
+                          <div className="neu-dot neu-dot-pulse" style={{ background: '#7c3aed' }} />
+                        ) : (
+                          <div className="neu-dot" style={{ background: '#94a3b8' }} />
+                        )}
+                        <div>
+                          <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--neu-text-title)' }}>
+                            {stage.label}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--neu-text-muted)' }}>
+                            {stage.detail}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
 
-            {/* Progress bar */}
-            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--ps-border)' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  fontSize: '0.75rem',
-                  color: 'var(--ps-text-muted)',
-                  marginBottom: '0.375rem',
-                }}
-              >
-                <span>Processing progress</span>
-                <span style={{ fontWeight: 600, color: 'var(--ps-ai)' }}>62%</span>
+                      <div
+                        className="neu-raised-sm"
+                        style={{
+                          padding: '0.2rem 0.5rem',
+                          fontSize: '0.6875rem',
+                          fontWeight: 700,
+                          color: isDone ? '#059669' : stage.status === 'active' ? '#7c3aed' : '#64748b',
+                        }}
+                      >
+                        {stage.time}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="ps-progress">
-                <div
-                  className="ps-progress-bar"
-                  style={{ width: '62%', background: 'var(--ps-ai)' }}
-                />
+
+              {/* Progress Groove Bar */}
+              <div style={{ marginTop: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+                  <span style={{ color: 'var(--neu-text-muted)' }}>Pipeline Execution</span>
+                  <span style={{ color: 'var(--neu-primary)' }}>72%</span>
+                </div>
+                <div className="neu-inset-sm" style={{ height: '8px', padding: '1px', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      width: '72%',
+                      background: 'linear-gradient(90deg, #2563eb, #7c3aed)',
+                      borderRadius: '6px',
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      <style>{`
-        @media (max-width: 900px) {
-          .ai-intel-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
     </section>
   );
 }

@@ -1,337 +1,334 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Play, CheckCircle, Zap, Shield, TrendingUp } from 'lucide-react';
-
-const PIPELINE_STEPS = [
-  { label: 'Unstructured Information', icon: '📄', color: '#64748b', desc: 'PDFs, CSVs, URLs, Datasheets' },
-  { label: 'AI Extraction', icon: null, color: '#2563eb', desc: 'Attribute detection & parsing', ai: true },
-  { label: 'Validation', icon: null, color: '#10b981', desc: 'Conflict & accuracy checks', ai: true },
-  { label: 'Enrichment', icon: null, color: '#8b5cf6', desc: 'Missing data completion', ai: true },
-  { label: 'Commerce Ready', icon: '✓', color: '#059669', desc: 'Structured product record', final: true },
-];
+import { ArrowRight, Zap, CheckCircle, ShieldCheck, Sparkles, Layers, FileText, ChevronRight } from 'lucide-react';
 
 const STATS = [
-  { value: '94%', label: 'Avg. Data Quality Score' },
-  { value: '10×', label: 'Faster than Manual Entry' },
-  { value: '12K+', label: 'Products Processed' },
+  { value: '94%', label: 'Avg Quality Score', icon: <CheckCircle size={15} color="#10b981" /> },
+  { value: '10×', label: 'Faster Processing', icon: <Zap size={15} color="#2563eb" /> },
+  { value: '12K+', label: 'Products Synced', icon: <Layers size={15} color="#8b5cf6" /> },
+];
+
+const PIPELINE_NODES = [
+  { step: '01', title: 'Raw Input', desc: 'PDF / Datasheets', status: 'done', color: '#64748b' },
+  { step: '02', title: 'AI Extraction', desc: '18 Specs Detected', status: 'done', color: '#2563eb' },
+  { step: '03', title: 'Validation', desc: '0 Conflicts', status: 'active', color: '#10b981' },
+  { step: '04', title: 'Enrichment', desc: '98% Complete', status: 'pending', color: '#8b5cf6' },
 ];
 
 export default function HeroSection() {
+  const [activeStep, setActiveStep] = useState(2);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveStep((prev) => (prev % 4) + 1);
+    }, 2800);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <section
-      className="hero-gradient"
       style={{
-        minHeight: '100vh',
-        paddingTop: '120px',
+        paddingTop: '130px',
         paddingBottom: '5rem',
-        display: 'flex',
-        alignItems: 'center',
+        position: 'relative',
       }}
     >
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 1.5rem', width: '100%' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 1.5rem' }}>
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '4rem',
+            gridTemplateColumns: '1.1fr 0.9fr',
+            gap: '3.5rem',
             alignItems: 'center',
           }}
-          className="hero-grid"
+          className="neu-hero-grid"
         >
-          {/* Left — content */}
-          <div style={{ animation: 'ps-fade-in 0.5s ease forwards' }}>
-            {/* Badge */}
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                background: 'rgba(37,99,235,0.08)',
-                border: '1px solid rgba(37,99,235,0.2)',
-                borderRadius: '20px',
-                padding: '0.3125rem 0.875rem',
-                fontSize: '0.8125rem',
-                fontWeight: 600,
-                color: 'var(--ps-primary)',
-                marginBottom: '1.5rem',
-              }}
-            >
-              <Zap size={13} />
-              AI-Powered Product Intelligence
+          {/* Left Column — Hero Text & CTAs */}
+          <div>
+            {/* Pill Badge */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <div className="neu-badge neu-badge-blue">
+                <span className="neu-dot neu-dot-pulse" />
+                <span>AI-Powered Product Intelligence</span>
+              </div>
             </div>
 
             <h1
-              className="text-display"
-              style={{ marginBottom: '1.5rem', color: 'var(--ps-text-primary)' }}
+              style={{
+                fontSize: 'clamp(2.25rem, 4.5vw, 3.5rem)',
+                fontWeight: 800,
+                lineHeight: 1.15,
+                color: 'var(--neu-text-title)',
+                letterSpacing: '-0.03em',
+                marginBottom: '1.5rem',
+              }}
             >
               Transform Product Data Into Product{' '}
-              <span style={{ color: 'var(--ps-primary)' }}>Intelligence</span>
+              <span
+                style={{
+                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                Intelligence
+              </span>
             </h1>
 
             <p
-              className="text-body"
               style={{
-                color: 'var(--ps-text-secondary)',
+                fontSize: '1.125rem',
+                lineHeight: 1.6,
+                color: 'var(--neu-text-body)',
                 marginBottom: '2rem',
-                fontSize: '1.0625rem',
-                maxWidth: '480px',
+                maxWidth: '520px',
               }}
             >
-              ProdSync uses AI to transform scattered industrial product information into
-              structured, validated, enriched, and commerce-ready data — at scale.
+              ProdSync extracts, normalizes, and validates complex technical specs from PDFs,
+              datasheets, and spreadsheets into clean, commerce-ready catalogs.
             </p>
 
             {/* CTAs */}
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '2.5rem' }}>
               <Link
                 href="/register"
-                className="ps-btn ps-btn-primary ps-btn-lg"
-                style={{ gap: '0.5rem' }}
+                className="neu-btn neu-btn-primary"
+                style={{
+                  padding: '0.875rem 1.75rem',
+                  fontSize: '1rem',
+                  gap: '0.5rem',
+                }}
               >
-                Start Building Your Catalog
+                Start Building Catalog
                 <ArrowRight size={18} />
               </Link>
               <Link
                 href="/how-it-works"
-                className="ps-btn ps-btn-secondary ps-btn-lg"
-                style={{ gap: '0.5rem' }}
+                className="neu-btn neu-btn-secondary"
+                style={{
+                  padding: '0.875rem 1.5rem',
+                  fontSize: '1rem',
+                }}
               >
-                <Play size={16} fill="currentColor" />
                 See How It Works
               </Link>
             </div>
 
-            {/* Social proof / stats */}
-            <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-              {STATS.map((stat) => (
-                <div key={stat.label}>
+            {/* Stats Trio (Neumorphic Cards) */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '1rem',
+              }}
+            >
+              {STATS.map((s) => (
+                <div
+                  key={s.label}
+                  className="neu-card"
+                  style={{
+                    padding: '1rem',
+                    textAlign: 'center',
+                  }}
+                >
                   <div
                     style={{
-                      fontSize: '1.5rem',
-                      fontWeight: 800,
-                      color: 'var(--ps-primary)',
-                      letterSpacing: '-0.02em',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.35rem',
+                      marginBottom: '0.25rem',
                     }}
                   >
-                    {stat.value}
+                    {s.icon}
+                    <div
+                      style={{
+                        fontSize: '1.375rem',
+                        fontWeight: 800,
+                        color: 'var(--neu-text-title)',
+                      }}
+                    >
+                      {s.value}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.8125rem', color: 'var(--ps-text-muted)', marginTop: '2px' }}>
-                    {stat.label}
+                  <div
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--neu-text-muted)',
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {s.label}
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Right — pipeline visualization */}
-          <div
-            style={{
-              animation: 'ps-slide-in-right 0.6s ease forwards',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0',
-            }}
-          >
-            {/* Dashboard preview card */}
+          {/* Right Column — Tactile Neumorphic Live Demo Console */}
+          <div>
             <div
-              className="ps-card"
+              className="neu-raised-lg"
               style={{
-                padding: '1.5rem',
+                padding: '1.75rem',
                 position: 'relative',
-                overflow: 'hidden',
               }}
             >
-              {/* Mini dashboard header */}
+              {/* Header Bar */}
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  marginBottom: '1rem',
+                  marginBottom: '1.25rem',
+                  paddingBottom: '0.875rem',
+                  borderBottom: '1px solid rgba(255,255,255,0.7)',
                 }}
               >
-                <div>
-                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--ps-text-primary)' }}>
-                    Product Intelligence Pipeline
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div className="neu-dot neu-dot-active" />
+                  <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--neu-text-title)' }}>
+                    Live AI Pipeline Monitor
+                  </span>
+                </div>
+                <div className="neu-badge neu-badge-emerald" style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }}>
+                  Ready
+                </div>
+              </div>
+
+              {/* Sample Product Well */}
+              <div
+                className="neu-inset"
+                style={{
+                  padding: '1rem 1.25rem',
+                  marginBottom: '1.25rem',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <FileText size={16} color="#2563eb" />
+                    <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--neu-text-title)' }}>
+                      Siemens_VFD_G120X_Spec.pdf
+                    </span>
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--ps-text-muted)' }}>
-                    HP-4500 Technical Datasheet
+                  <span style={{ fontSize: '0.75rem', color: 'var(--neu-text-muted)', fontWeight: 500 }}>
+                    1.8 MB
+                  </span>
+                </div>
+
+                {/* Extracted Key-Values Preview */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: '0.5rem',
+                    fontSize: '0.78125rem',
+                  }}
+                >
+                  <div style={{ background: 'rgba(255,255,255,0.5)', padding: '0.4rem 0.6rem', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--neu-text-muted)' }}>Power: </span>
+                    <strong style={{ color: 'var(--neu-text-title)' }}>15 kW (20 HP)</strong>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.5)', padding: '0.4rem 0.6rem', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--neu-text-muted)' }}>Voltage: </span>
+                    <strong style={{ color: 'var(--neu-text-title)' }}>380-480 V</strong>
                   </div>
                 </div>
-                <span className="ps-badge ps-badge-ai" style={{ fontSize: '0.6875rem' }}>
-                  AI Processing
-                </span>
               </div>
 
-              {/* Pipeline stages */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-                {PIPELINE_STEPS.map((step, i) => (
-                  <React.Fragment key={step.label}>
+              {/* 4 Pipeline Step Stages */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {PIPELINE_NODES.map((node, i) => {
+                  const nodeIndex = i + 1;
+                  const isCurrent = activeStep === nodeIndex;
+                  const isPast = activeStep > nodeIndex;
+
+                  return (
                     <div
+                      key={node.step}
+                      className={isCurrent ? 'neu-inset' : 'neu-card'}
                       style={{
+                        padding: '0.75rem 1rem',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '0.75rem',
-                        padding: '0.75rem 1rem',
-                        borderRadius: '8px',
-                        background: i === 2 ? 'var(--ps-primary-50)' : 'transparent',
-                        border: i === 2 ? '1px solid var(--ps-primary-100)' : '1px solid transparent',
-                        animation: `ps-pipeline-flow ${0.3 + i * 0.1}s ease ${i * 0.08}s both`,
+                        justifyContent: 'space-between',
+                        transition: 'all 0.3s ease',
                       }}
                     >
-                      {/* Status indicator */}
-                      <div
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%',
-                          background: i < 2 ? 'var(--ps-success-light)' : i === 2 ? 'var(--ps-primary-100)' : 'var(--ps-slate-100)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {i < 2 ? (
-                          <CheckCircle size={16} color="var(--ps-success)" />
-                        ) : i === 2 ? (
-                          <div
-                            style={{
-                              width: '10px',
-                              height: '10px',
-                              borderRadius: '50%',
-                              background: 'var(--ps-primary)',
-                              animation: 'ps-pulse-dot 1.2s ease-in-out infinite',
-                            }}
-                          />
-                        ) : i === PIPELINE_STEPS.length - 1 ? (
-                          <Shield size={16} color="var(--ps-success)" />
-                        ) : (
-                          <div
-                            style={{
-                              width: '8px',
-                              height: '8px',
-                              borderRadius: '50%',
-                              background: 'var(--ps-slate-300)',
-                            }}
-                          />
-                        )}
-                      </div>
-
-                      <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
                         <div
+                          className="neu-raised-sm"
                           style={{
-                            fontSize: '0.875rem',
-                            fontWeight: 600,
-                            color: i === 2 ? 'var(--ps-primary)' : i < 2 ? 'var(--ps-text-primary)' : 'var(--ps-text-muted)',
+                            width: '32px',
+                            height: '32px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            color: isCurrent ? 'var(--neu-primary)' : 'var(--neu-text-muted)',
+                            background: isCurrent ? '#ffffff' : 'var(--neu-bg)',
                           }}
                         >
-                          {step.label}
+                          {node.step}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--ps-text-muted)' }}>
-                          {step.desc}
+                        <div>
+                          <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--neu-text-title)' }}>
+                            {node.title}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--neu-text-muted)' }}>
+                            {node.desc}
+                          </div>
                         </div>
                       </div>
 
-                      {step.ai && (
-                        <span className="ps-badge ps-badge-ai" style={{ fontSize: '0.6875rem' }}>
-                          AI
-                        </span>
-                      )}
-                      {step.final && i === PIPELINE_STEPS.length - 1 && (
-                        <span className="ps-badge ps-badge-verified" style={{ fontSize: '0.6875rem' }}>
-                          Ready
-                        </span>
-                      )}
+                      <div>
+                        {isCurrent ? (
+                          <div className="neu-badge neu-badge-blue" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}>
+                            <span className="neu-dot neu-dot-pulse" style={{ width: '6px', height: '6px' }} />
+                            Running
+                          </div>
+                        ) : isPast ? (
+                          <div className="neu-badge neu-badge-emerald" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}>
+                            <CheckCircle size={10} />
+                            Passed
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--neu-text-muted)', fontWeight: 500 }}>
+                            Queued
+                          </div>
+                        )}
+                      </div>
                     </div>
-
-                    {/* Connector line */}
-                    {i < PIPELINE_STEPS.length - 1 && (
-                      <div
-                        style={{
-                          width: '2px',
-                          height: '12px',
-                          background: i < 2 ? 'var(--ps-success)' : 'var(--ps-slate-200)',
-                          marginLeft: 'calc(1rem + 15px)',
-                        }}
-                      />
-                    )}
-                  </React.Fragment>
-                ))}
+                  );
+                })}
               </div>
 
-              {/* Quality score footer */}
+              {/* Bottom Accuracy Ribbon */}
               <div
                 style={{
                   marginTop: '1.25rem',
-                  paddingTop: '1rem',
-                  borderTop: '1px solid var(--ps-border)',
                   display: 'flex',
-                  gap: '1.5rem',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingTop: '0.875rem',
+                  borderTop: '1px solid rgba(255,255,255,0.7)',
+                  fontSize: '0.8125rem',
                 }}
               >
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--ps-success)' }}>94%</div>
-                  <div style={{ fontSize: '0.6875rem', color: 'var(--ps-text-muted)', fontWeight: 500 }}>Data Quality</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--ps-primary)' }}>96%</div>
-                  <div style={{ fontSize: '0.6875rem', color: 'var(--ps-text-muted)', fontWeight: 500 }}>AI Confidence</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--ps-ai)' }}>7</div>
-                  <div style={{ fontSize: '0.6875rem', color: 'var(--ps-text-muted)', fontWeight: 500 }}>Attrs Verified</div>
-                </div>
+                <span style={{ color: 'var(--neu-text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <ShieldCheck size={16} color="#10b981" />
+                  Deterministic Validation
+                </span>
+                <strong style={{ color: 'var(--neu-primary)' }}>100% Provenance Traceable</strong>
               </div>
-            </div>
-
-            {/* Trust indicators */}
-            <div
-              style={{
-                display: 'flex',
-                gap: '0.5rem',
-                marginTop: '1rem',
-                flexWrap: 'wrap',
-              }}
-            >
-              {[
-                { icon: <Shield size={13} />, label: 'Enterprise Security' },
-                { icon: <TrendingUp size={13} />, label: 'Explainable AI' },
-                { icon: <CheckCircle size={13} />, label: 'Human-in-the-Loop' },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.375rem',
-                    padding: '0.375rem 0.75rem',
-                    background: 'white',
-                    border: '1px solid var(--ps-border)',
-                    borderRadius: '20px',
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                    color: 'var(--ps-text-secondary)',
-                  }}
-                >
-                  {item.icon}
-                  {item.label}
-                </div>
-              ))}
             </div>
           </div>
         </div>
       </div>
-
-      <style>{`
-        @media (max-width: 900px) {
-          .hero-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
     </section>
   );
 }
