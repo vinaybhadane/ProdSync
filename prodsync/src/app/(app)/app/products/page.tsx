@@ -295,7 +295,7 @@ export default function ProductsPage() {
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
           <a
-            href="http://localhost:8000/api/v1/exports/unilog-delivery-format"
+            href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/exports/unilog-delivery-format`}
             download="Unihack_Expected_Output_Delivery_Format.csv"
             className="ps-btn ps-btn-secondary ps-btn-sm"
             title="Download 252-column standard delivery format matching Unilog specification"

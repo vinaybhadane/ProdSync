@@ -23,6 +23,15 @@ import type {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  // Prevent browser loopback CORS errors if hosted on remote HTTPS without NEXT_PUBLIC_API_URL set
+  if (
+    typeof window !== 'undefined' &&
+    window.location.protocol === 'https:' &&
+    API_BASE_URL.includes('localhost')
+  ) {
+    throw new Error('BACKEND_NOT_CONFIGURED');
+  }
+
   const url = `${API_BASE_URL}${endpoint}`;
   const headers = new Headers(options.headers || {});
   
@@ -38,8 +47,7 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
       cache: 'no-store',
     });
   } catch (err: any) {
-    console.warn(`Network connection error calling ${url}:`, err);
-    throw new Error(`Unable to connect to ProdSync backend server (${API_BASE_URL}). Please verify that the backend is running.`);
+    throw new Error(`Unable to connect to ProdSync backend server (${API_BASE_URL}).`);
   }
 
   if (!res.ok) {

@@ -152,7 +152,8 @@ export default function ProductDetailPage() {
 
   const handleExportProduct = () => {
     if (!product) return;
-    const url = `http://localhost:8000/api/v1/exports/unilog-delivery-format`;
+    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+    const url = `${base}/exports/unilog-delivery-format?product_ids=${product.id}`;
     window.open(url, '_blank');
     showToast('📥 Downloading 252-Column Unilog Delivery Format CSV...');
   };
