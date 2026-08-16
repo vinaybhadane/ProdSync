@@ -39,6 +39,22 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
     headers.set('Content-Type', 'application/json');
   }
 
+  // Attach active organization context headers
+  if (typeof window !== 'undefined') {
+    try {
+      const userRaw = localStorage.getItem('prodsync_auth_user');
+      if (userRaw) {
+        const u = JSON.parse(userRaw);
+        if (u.email) headers.set('X-User-Email', u.email);
+      }
+      const orgRaw = localStorage.getItem('prodsync_active_org');
+      if (orgRaw) {
+        const o = JSON.parse(orgRaw);
+        if (o.id) headers.set('X-Organization-Id', o.id);
+      }
+    } catch {}
+  }
+
   let res: Response;
   try {
     res = await fetch(url, {

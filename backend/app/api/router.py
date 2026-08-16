@@ -21,6 +21,26 @@ from app.api.v1.support import router as support_router
 
 api_v1_router = APIRouter()
 
+@api_v1_router.get("", tags=["Root"])
+@api_v1_router.get("/", tags=["Root"])
+async def api_v1_root():
+    return {
+        "status": "online",
+        "api": "ProdSync AI v1",
+        "endpoints": [
+            "/products",
+            "/catalogs",
+            "/imports/file",
+            "/imports/ocr-scan",
+            "/processing",
+            "/validation",
+            "/enrichment",
+            "/analytics",
+            "/exports/unilog-delivery-format"
+        ],
+        "message": "ProdSync Enterprise API v1 is active and ready."
+    }
+
 # Register all v1 routes
 api_v1_router.include_router(auth_router)
 api_v1_router.include_router(users_router)
