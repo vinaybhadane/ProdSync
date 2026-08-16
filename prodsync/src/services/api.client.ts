@@ -30,15 +30,34 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
     headers.set('Content-Type', 'application/json');
   }
 
-  const res = await fetch(url, {
-    ...options,
-    headers,
-    cache: 'no-store',
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...options,
+      headers,
+      cache: 'no-store',
+    });
+  } catch (err: any) {
+    console.warn(`Network connection error calling ${url}:`, err);
+    throw new Error(`Unable to connect to ProdSync backend server (${API_BASE_URL}). Please verify that the backend is running.`);
+  }
 
   if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`API Error ${res.status}: ${errorText}`);
+    let errorMsg = `API Error ${res.status}`;
+    try {
+      const errJson = await res.json();
+      if (errJson?.error?.message) {
+        errorMsg = errJson.error.message;
+      } else if (errJson?.message) {
+        errorMsg = errJson.message;
+      } else if (errJson?.detail) {
+        errorMsg = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail);
+      }
+    } catch {
+      const errorText = await res.text().catch(() => '');
+      if (errorText) errorMsg = `${errorMsg}: ${errorText}`;
+    }
+    throw new Error(errorMsg);
   }
 
   if (res.status === 204) {
