@@ -3,10 +3,10 @@ import {
   getAuth, 
   initializeAuth, 
   browserLocalPersistence, 
+  browserSessionPersistence,
   inMemoryPersistence, 
   Auth 
 } from 'firebase/auth';
-import { getAnalytics, Analytics } from 'firebase/analytics';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyBMzA_ZTW-x1rBhqc-fKRnHWcoUeY61PV8',
@@ -25,7 +25,6 @@ export const isFirebaseConfigured = Boolean(
 
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
-let analytics: Analytics | null = null;
 
 export function getFirebaseApp(): FirebaseApp | null {
   if (app) return app;
@@ -34,7 +33,7 @@ export function getFirebaseApp(): FirebaseApp | null {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
     return app;
   } catch (e) {
-    console.warn('Firebase app init error:', e);
+    console.warn('Firebase app init notice:', e);
     return null;
   }
 }
@@ -43,36 +42,39 @@ export function getFirebaseAuth(): Auth | null {
   if (auth) return auth;
   const currentApp = getFirebaseApp();
   if (!currentApp) return null;
+
   try {
     auth = getAuth(currentApp);
     return auth;
   } catch {
     try {
       auth = initializeAuth(currentApp, {
-        persistence: [browserLocalPersistence, inMemoryPersistence],
+        persistence: [browserLocalPersistence, browserSessionPersistence, inMemoryPersistence],
       });
       return auth;
     } catch (e) {
-      console.warn('Firebase auth init error:', e);
-      return null;
+      console.warn('Firebase auth persistence fallback notice:', e);
+      try {
+        auth = initializeAuth(currentApp, {
+          persistence: inMemoryPersistence,
+        });
+        return auth;
+      } catch {
+        return null;
+      }
     }
   }
 }
 
-// Eager initialization on browser
+// Client initialization
 if (typeof window !== 'undefined' && isFirebaseConfigured) {
   try {
     app = getFirebaseApp();
     auth = getFirebaseAuth();
-    if (firebaseConfig.measurementId) {
-      try {
-        if (app) analytics = getAnalytics(app);
-      } catch {}
-    }
   } catch (e) {
-    console.warn('Firebase init error:', e);
+    console.warn('Firebase client init notice:', e);
   }
 }
 
-export { app, auth, analytics };
+export { app, auth };
 export default app;

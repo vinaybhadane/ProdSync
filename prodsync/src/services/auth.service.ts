@@ -218,27 +218,40 @@ export const authService = {
    * Real Auth State Observer (Listens directly to Firebase Auth session)
    */
   onAuthStateChanged(callback: (user: AuthUser | null) => void) {
-    const firebaseAuth = getFirebaseAuth() || auth;
-    if (firebaseAuth && isFirebaseConfigured) {
-      return onAuthStateChanged(firebaseAuth, (fbUser) => {
-        if (fbUser) {
-          const user: AuthUser = {
-            uid: fbUser.uid,
-            email: fbUser.email,
-            displayName: fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
-            photoURL: fbUser.photoURL,
-            emailVerified: fbUser.emailVerified,
-          };
-          setStoredUser(user);
-          callback(user);
-        } else {
-          setStoredUser(null);
-          callback(null);
-        }
-      });
+    try {
+      const firebaseAuth = getFirebaseAuth() || auth;
+      if (firebaseAuth && isFirebaseConfigured) {
+        return onAuthStateChanged(
+          firebaseAuth,
+          (fbUser) => {
+            if (fbUser) {
+              const user: AuthUser = {
+                uid: fbUser.uid,
+                email: fbUser.email,
+                displayName: fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
+                photoURL: fbUser.photoURL,
+                emailVerified: fbUser.emailVerified,
+              };
+              setStoredUser(user);
+              callback(user);
+            } else {
+              setStoredUser(null);
+              callback(null);
+            }
+          },
+          (error) => {
+            // Guard against "Database is closing/hidden" or IndexedDB closure errors
+            console.warn('Firebase Auth state observer notice (handled gracefully):', error);
+            const stored = getStoredUser();
+            callback(stored);
+          }
+        );
+      }
+    } catch (e) {
+      console.warn('Firebase Auth state observer init notice:', e);
     }
 
-    // Fallback if Firebase not configured
+    // Fallback if Firebase not configured or transient error
     const stored = getStoredUser();
     callback(stored);
     authListeners.push(callback);
