@@ -1,6 +1,6 @@
 """
-Azure AI Document Intelligence OCR, Google Gemini Vision & Tabular File Extraction Integration
-Supports PDF, CSV, TSV, XLSX, JSON, and Image OCR (PNG, JPG, JPEG, WEBP, TIFF, BMP).
+Local OCR Library (RapidOCR), Azure AI Document Intelligence & Tabular File Extraction Integration
+Extracts raw rough text locally from images (PNG, JPG, JPEG, WEBP, TIFF, BMP) without using Vision APIs.
 """
 
 import csv
@@ -12,11 +12,16 @@ from app.core.config import settings
 from app.core.logging import logger
 
 try:
-    from google import genai
-    from google.genai import types as genai_types
-    GENAI_AVAILABLE = True
+    from rapidocr_onnxruntime import RapidOCR
+    RAPIDOCR_AVAILABLE = True
 except ImportError:
-    GENAI_AVAILABLE = False
+    RAPIDOCR_AVAILABLE = False
+
+try:
+    import pytesseract
+    PYTESSERACT_AVAILABLE = True
+except ImportError:
+    PYTESSERACT_AVAILABLE = False
 
 try:
     from azure.ai.formrecognizer.aio import DocumentAnalysisClient
@@ -32,9 +37,17 @@ class DocumentIntelligenceService:
         self.endpoint = settings.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT
         self.api_key = settings.AZURE_DOCUMENT_INTELLIGENCE_API_KEY
         self.client: Optional[Any] = None
-        self.gemini_client: Optional[Any] = None
+        self.rapid_ocr: Optional[Any] = None
 
-        # 1. Initialize Azure Document Intelligence client
+        # 1. Initialize local RapidOCR engine (ONNX Runtime)
+        if RAPIDOCR_AVAILABLE:
+            try:
+                self.rapid_ocr = RapidOCR()
+                logger.info("Local RapidOCR library engine initialized successfully.")
+            except Exception as e:
+                logger.warning(f"Local RapidOCR init notice: {e}")
+
+        # 2. Initialize Azure Document Intelligence client (if configured)
         if DOC_INTEL_AVAILABLE and self.endpoint:
             try:
                 if self.api_key:
@@ -51,18 +64,10 @@ class DocumentIntelligenceService:
             except Exception as e:
                 logger.warning(f"Azure AI Document Intelligence client notice: {e}")
 
-        # 2. Initialize Google Gemini Vision client
-        if GENAI_AVAILABLE and settings.GEMINI_API_KEY:
-            try:
-                self.gemini_client = genai.Client(api_key=settings.GEMINI_API_KEY)
-                logger.info("Google Gemini Vision OCR engine initialized.")
-            except Exception as e:
-                logger.warning(f"Gemini Vision init notice: {e}")
-
     async def analyze_document(self, document_bytes: bytes, file_type: str = "pdf") -> Dict[str, Any]:
         """
-        Analyzes a document or image using Gemini Vision, Azure AI Document Intelligence, or tabular parsers.
-        Extracts pages, text blocks, structured records, tables, and raw OCR text.
+        Analyzes a document or image using local OCR library (RapidOCR), Azure Document Intelligence, or tabular parsers.
+        Extracts pages, text blocks, structured records, tables, and raw OCR rough text.
         """
         import asyncio
 
@@ -72,7 +77,7 @@ class DocumentIntelligenceService:
         if file_type_lower in ["csv", "tsv", "txt", "json", "xlsx", "xls"]:
             return self._parse_structured_file(document_bytes, file_type_lower)
 
-        # 2. Images (PNG, JPG, JPEG, WEBP, TIFF, BMP) -> Multimodal Gemini Vision OCR
+        # 2. Images (PNG, JPG, JPEG, WEBP, TIFF, BMP) -> Local RapidOCR Library Extraction
         if file_type_lower in ["jpg", "jpeg", "png", "webp", "tiff", "bmp", "gif"]:
             return await self._analyze_image_ocr(document_bytes, file_type_lower)
 
@@ -126,91 +131,67 @@ class DocumentIntelligenceService:
 
     async def _analyze_image_ocr(self, data: bytes, file_type: str) -> Dict[str, Any]:
         """
-        Executes high-accuracy OCR on image bytes using Google Gemini Vision or Azure Document Intelligence.
+        Executes local Optical Character Recognition (OCR) on image bytes using RapidOCR library.
+        Extracts raw rough text, line boxes, and confidence scores locally without any external vision API.
         """
         import asyncio
-        mime_map = {
-            "jpg": "image/jpeg",
-            "jpeg": "image/jpeg",
-            "png": "image/png",
-            "webp": "image/webp",
-            "bmp": "image/bmp",
-            "tiff": "image/tiff",
-            "gif": "image/gif",
-        }
-        mime_type = mime_map.get(file_type, "image/png")
 
-        # 1. Primary: Google Gemini Vision OCR
-        if self.gemini_client:
-            models_to_try = [
-                settings.GEMINI_MODEL or "gemini-3.5-flash-lite",
-                "gemini-3.5-flash-lite",
-                "gemini-3.5-flash",
-                "gemini-flash-lite-latest",
-                "gemini-3.1-flash-lite",
-                "gemini-2.5-flash",
-            ]
-            for model_name in models_to_try:
-                try:
-                    logger.info(f"Invoking Gemini Vision OCR on image ({len(data)} bytes) with model '{model_name}'...")
-                    response = await asyncio.to_thread(
-                        self.gemini_client.models.generate_content,
-                        model=model_name,
-                        contents=[
-                            genai_types.Part.from_bytes(data=data, mime_type=mime_type),
-                            (
-                                "Perform complete, high-precision Optical Character Recognition (OCR) on this product image or nameplate.\n"
-                                "Transcribe every single piece of visible text exactly as written, including:\n"
-                                "- Product names, titles, branding, and manufacturer names\n"
-                                "- Part numbers, model numbers, SKU, serial numbers, barcodes, QR texts\n"
-                                "- Electrical ratings (voltage, amperage, power, frequency, phase)\n"
-                                "- Mechanical ratings (pressure, flow rate, RPM, torque, dimensions, weight)\n"
-                                "- Certifications (CE, UL, CSA, ISO, IP rating, RoHS)\n"
-                                "- Materials, finishes, warnings, and specification tables\n\n"
-                                "Return the exact transcribed text cleanly."
-                            )
-                        ]
-                    )
-                    ocr_text = response.text or ""
-                    if ocr_text.strip():
-                        lines = [line.strip() for line in ocr_text.split("\n") if line.strip()]
-                        logger.info(f"Gemini Vision successfully extracted {len(lines)} OCR text lines from image.")
-                        return {
-                            "full_text": ocr_text.strip(),
-                            "pages": [{"page_number": 1, "lines": lines}],
-                            "tables": [],
-                            "records": [],
-                            "source": "google_gemini_vision_ocr",
-                            "model": model_name,
-                        }
-                except Exception as e:
-                    logger.warning(f"Gemini Vision OCR notice for '{model_name}': {e}")
-                    continue
-
-        # 2. Secondary: Azure Document Intelligence for Images
-        if self.client:
+        # 1. Primary: Local RapidOCR Engine
+        if self.rapid_ocr:
             try:
-                poller = await self.client.begin_analyze_document("prebuilt-read", document=data)
-                result = await asyncio.wait_for(poller.result(), timeout=15.0)
-                extracted_pages = []
-                for page in result.pages:
-                    extracted_pages.append({
-                        "page_number": page.page_number,
-                        "lines": [line.content for line in page.lines],
-                        "width": page.width,
-                        "height": page.height,
-                    })
-                return {
-                    "full_text": result.content,
-                    "pages": extracted_pages,
-                    "tables": [],
-                    "records": [],
-                    "source": "azure_document_intelligence_read",
-                }
-            except Exception as e:
-                logger.warning(f"Azure OCR error: {e}")
+                logger.info(f"Running local RapidOCR library on image ({len(data)} bytes)...")
+                # Run CPU ONNX inference in thread pool to prevent blocking the event loop
+                ocr_result, elapse = await asyncio.to_thread(self.rapid_ocr, data)
+                
+                if ocr_result:
+                    extracted_lines = []
+                    confidences = []
+                    for item in ocr_result:
+                        # item structure: [box_coordinates, text_string, confidence_float]
+                        _, text, score = item
+                        cleaned_text = str(text).strip()
+                        if cleaned_text:
+                            extracted_lines.append(cleaned_text)
+                            confidences.append(float(score))
 
-        # 3. Fallback: Local string decode
+                    rough_text = "\n".join(extracted_lines)
+                    avg_conf = (sum(confidences) / len(confidences)) if confidences else 0.95
+
+                    logger.info(f"Local RapidOCR successfully extracted {len(extracted_lines)} rough text lines (avg conf: {avg_conf:.2f}).")
+                    return {
+                        "full_text": rough_text,
+                        "pages": [{"page_number": 1, "lines": extracted_lines}],
+                        "tables": [],
+                        "records": [],
+                        "source": "rapidocr_local_library",
+                        "engine": "RapidOCR (Local Python Library)",
+                        "line_count": len(extracted_lines),
+                        "confidence": round(avg_conf * 100, 1),
+                    }
+            except Exception as e:
+                logger.warning(f"Local RapidOCR execution notice: {e}")
+
+        # 2. Secondary: Local Pytesseract (if installed and configured)
+        if PYTESSERACT_AVAILABLE:
+            try:
+                from PIL import Image
+                img = Image.open(io.BytesIO(data))
+                rough_text = await asyncio.to_thread(pytesseract.image_to_string, img)
+                lines = [l.strip() for l in rough_text.splitlines() if l.strip()]
+                if lines:
+                    return {
+                        "full_text": "\n".join(lines),
+                        "pages": [{"page_number": 1, "lines": lines}],
+                        "tables": [],
+                        "records": [],
+                        "source": "pytesseract_local_library",
+                        "engine": "Tesseract OCR",
+                        "line_count": len(lines),
+                    }
+            except Exception as e:
+                logger.warning(f"Pytesseract notice: {e}")
+
+        # 3. Fallback: UTF-8 decode
         full_text = data.decode("utf-8", errors="ignore")[:5000]
         return {
             "full_text": full_text.strip(),
@@ -218,6 +199,7 @@ class DocumentIntelligenceService:
             "tables": [],
             "records": [],
             "source": "image_fallback_parser",
+            "engine": "Basic Parser",
         }
 
     def _parse_structured_file(self, data: bytes, file_type: str) -> Dict[str, Any]:

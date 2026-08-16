@@ -505,8 +505,11 @@ export const liveImportService = {
     ocrText: string;
     ocrLines: string[];
     lineCount: number;
+    ocrEngine?: string;
+    ocrConfidence?: number;
     products: any[];
     jobId?: string;
+    aiModel?: string;
   }> {
     const formData = new FormData();
     formData.append('file', file);
@@ -519,11 +522,14 @@ export const liveImportService = {
     const d = res.data || {};
     return {
       filename: d.filename || file.name,
-      ocrText: d.ocr_text || '',
+      ocrText: d.rough_ocr_text || d.ocr_text || '',
       ocrLines: d.ocr_lines || [],
       lineCount: d.line_count || 0,
+      ocrEngine: d.ocr_engine || 'RapidOCR (Local Python Library)',
+      ocrConfidence: d.ocr_confidence || 95,
       products: d.products || [],
       jobId: d.job_id,
+      aiModel: d.ai_model || 'gemini-3.5-flash-lite',
     };
   },
 

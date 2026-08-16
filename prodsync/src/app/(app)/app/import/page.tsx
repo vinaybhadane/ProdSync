@@ -20,6 +20,8 @@ interface OcrScanResult {
   ocrText: string;
   ocrLines: string[];
   lineCount?: number;
+  ocrEngine?: string;
+  ocrConfidence?: number;
   products: any[];
   jobId?: string;
   model?: string;
@@ -159,6 +161,9 @@ export default function ImportPage() {
         imagePreviewUrl: previewUrl,
         ocrText: res.ocrText,
         ocrLines: res.ocrLines,
+        lineCount: res.lineCount,
+        ocrEngine: res.ocrEngine,
+        ocrConfidence: res.ocrConfidence,
         products: res.products,
         jobId: res.jobId,
       });
@@ -174,8 +179,8 @@ export default function ImportPage() {
           progress: 50,
           stages: [
             { id: 'upload', label: 'Image Uploaded', status: 'completed' },
-            { id: 'ocr', label: 'Gemini Vision OCR', status: 'completed' },
-            { id: 'extract', label: 'AI Specification Normalization', status: 'active' },
+            { id: 'ocr', label: 'RapidOCR Local Library', status: 'completed' },
+            { id: 'extract', label: 'Gemini AI Normalization', status: 'active' },
             { id: 'validate', label: 'Engineering Rule Validation', status: 'pending' },
             { id: 'save', label: 'Saved to Products Catalog', status: 'pending' },
           ],
@@ -289,7 +294,7 @@ export default function ImportPage() {
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
         {([
           { id: 'file', icon: <Upload size={14} />, label: 'Upload File / CSV / PDF' },
-          { id: 'ocr', icon: <Camera size={14} />, label: 'Image OCR Scan (Gemini Vision)' },
+          { id: 'ocr', icon: <Camera size={14} />, label: 'Image OCR Scan (RapidOCR Library)' },
           { id: 'url', icon: <Globe size={14} />, label: 'Enter URL' },
           { id: 'paste', icon: <Type size={14} />, label: 'Paste Text' },
           { id: 'manual', icon: <Plus size={14} />, label: 'Manual Entry' },
@@ -546,9 +551,14 @@ export default function ImportPage() {
             <div className="ps-card" style={{ padding: '1.5rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Sparkles size={18} color="var(--ps-primary)" />
-                  <div style={{ fontWeight: 700, fontSize: '0.9375rem' }}>
-                    Gemini Vision OCR & AI Extraction
+                  <Cpu size={18} color="var(--ps-primary)" />
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.9375rem' }}>
+                      Two-Stage OCR & AI Product Extraction
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--ps-text-muted)' }}>
+                      Local OCR library transcription + Gemini AI specification structuring
+                    </div>
                   </div>
                 </div>
                 <button onClick={() => setOcrResult(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ps-text-muted)' }}>
@@ -556,7 +566,7 @@ export default function ImportPage() {
                 </button>
               </div>
 
-              {/* Image Preview Thumbnail */}
+              {/* Image Preview Thumbnail & Engine Status */}
               <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem', padding: '0.75rem', background: 'var(--ps-bg-secondary)', borderRadius: '8px', alignItems: 'center' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -568,54 +578,77 @@ export default function ImportPage() {
                   <div style={{ fontWeight: 600, fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {ocrResult.filename}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--ps-success)', fontWeight: 600, marginTop: '2px' }}>
-                    ✓ {ocrResult.lineCount} OCR text lines extracted
+                  <div style={{ display: 'flex', gap: '0.375rem', marginTop: '4px', flexWrap: 'wrap' }}>
+                    <span className="ps-badge ps-badge-neutral" style={{ fontSize: '0.6875rem' }}>
+                      <Cpu size={10} style={{ marginRight: '3px' }} /> {ocrResult.ocrEngine || 'RapidOCR Library'}
+                    </span>
+                    <span className="ps-badge ps-badge-success" style={{ fontSize: '0.6875rem' }}>
+                      ✓ {ocrResult.lineCount || ocrResult.ocrLines?.length || 0} lines transcribed
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Extracted Product Highlights */}
-              {ocrResult.products && ocrResult.products.length > 0 ? (
-                <div style={{ marginBottom: '1.25rem' }}>
-                  {ocrResult.products.map((p, idx) => (
-                    <div key={idx} style={{ padding: '1rem', border: '1px solid var(--ps-border)', borderRadius: '8px', marginBottom: '0.75rem' }}>
-                      <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--ps-text-primary)', marginBottom: '0.25rem' }}>
-                        {p.name || 'Extracted Industrial Product'}
-                      </div>
-                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
-                        {p.sku && <span className="ps-badge ps-badge-neutral" style={{ fontFamily: 'monospace' }}>SKU: {p.sku}</span>}
-                        {p.manufacturer && <span className="ps-badge ps-badge-neutral">Mfr: {p.manufacturer}</span>}
-                        {p.category && <span className="ps-badge ps-badge-ai">{p.category}</span>}
-                      </div>
-
-                      {/* Attribute specs */}
-                      {p.attributes && p.attributes.length > 0 && (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.375rem', maxHeight: '160px', overflowY: 'auto' }}>
-                          {p.attributes.map((attr: any, aIdx: number) => (
-                            <div key={aIdx} style={{ fontSize: '0.75rem', padding: '0.35rem 0.5rem', background: 'var(--ps-bg-secondary)', borderRadius: '4px' }}>
-                              <span style={{ color: 'var(--ps-text-muted)' }}>{attr.display_name || attr.key}: </span>
-                              <strong>{attr.value}{attr.unit ? ` ${attr.unit}` : ''}</strong>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-
-              {/* Raw OCR Text Toggle / Box */}
+              {/* STAGE 1: Rough OCR Transcribed Text from Local Library */}
               <div style={{ marginBottom: '1.25rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--ps-text-muted)' }}>Transcribed OCR Text:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                    <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: 'var(--ps-primary)', color: 'white', fontSize: '0.6875rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>1</span>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--ps-text-primary)' }}>Rough OCR Text (Local Library):</span>
+                  </div>
                   <button onClick={handleCopyOcr} className="ps-btn ps-btn-ghost ps-btn-sm" style={{ padding: '0.125rem 0.375rem', fontSize: '0.6875rem' }}>
                     {copiedOcr ? <Check size={12} color="var(--ps-success)" /> : <Copy size={12} />}
-                    {copiedOcr ? 'Copied' : 'Copy Text'}
+                    {copiedOcr ? 'Copied' : 'Copy Rough Text'}
                   </button>
                 </div>
-                <pre style={{ maxHeight: '100px', overflowY: 'auto', fontSize: '0.75rem', padding: '0.625rem', background: 'var(--ps-bg-secondary)', borderRadius: '6px', fontFamily: 'monospace', whiteSpace: 'pre-wrap', color: 'var(--ps-text-secondary)' }}>
-                  {ocrResult.ocrText}
-                </pre>
+                <textarea
+                  value={ocrResult.ocrText}
+                  readOnly
+                  rows={4}
+                  className="ps-input"
+                  style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--ps-text-secondary)', background: 'var(--ps-bg-secondary)', resize: 'vertical' }}
+                />
+              </div>
+
+              {/* STAGE 2: AI Cleaned & Structured Specifications */}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.5rem' }}>
+                  <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: 'var(--ps-success)', color: 'white', fontSize: '0.6875rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>2</span>
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--ps-text-primary)' }}>AI Cleaned & Structured Product (Gemini):</span>
+                </div>
+
+                {ocrResult.products && ocrResult.products.length > 0 ? (
+                  <div>
+                    {ocrResult.products.map((p, idx) => (
+                      <div key={idx} style={{ padding: '0.875rem', border: '1px solid var(--ps-border)', borderRadius: '8px', background: 'white' }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--ps-text-primary)', marginBottom: '0.25rem' }}>
+                          {p.name || 'Extracted Industrial Product'}
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginBottom: '0.625rem' }}>
+                          {p.sku && <span className="ps-badge ps-badge-neutral" style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>SKU: {p.sku}</span>}
+                          {p.manufacturer && <span className="ps-badge ps-badge-neutral" style={{ fontSize: '0.75rem' }}>Mfr: {p.manufacturer}</span>}
+                          {p.category && <span className="ps-badge ps-badge-ai" style={{ fontSize: '0.75rem' }}>{p.category}</span>}
+                        </div>
+
+                        {/* Attribute specs */}
+                        {p.attributes && p.attributes.length > 0 && (
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.375rem', maxHeight: '160px', overflowY: 'auto' }}>
+                            {p.attributes.map((attr: any, aIdx: number) => (
+                              <div key={aIdx} style={{ fontSize: '0.75rem', padding: '0.35rem 0.5rem', background: 'var(--ps-bg-secondary)', borderRadius: '4px' }}>
+                                <span style={{ color: 'var(--ps-text-muted)' }}>{attr.display_name || attr.key}: </span>
+                                <strong>{attr.value}{attr.unit ? ` ${attr.unit}` : ''}</strong>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--ps-text-muted)', padding: '0.75rem', background: 'var(--ps-bg-secondary)', borderRadius: '6px' }}>
+                    Structuring specifications from rough text...
+                  </div>
+                )}
               </div>
 
               <Link href="/app/products" className="ps-btn ps-btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
