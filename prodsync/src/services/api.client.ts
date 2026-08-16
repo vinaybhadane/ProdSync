@@ -246,8 +246,24 @@ export const liveProductService = {
     }
   },
 
-  async deleteProduct(id: string): Promise<void> {
-    await apiFetch(`/products/${id}`, { method: 'DELETE' });
+  async deleteProduct(id: string, permanent: boolean = true): Promise<void> {
+    await apiFetch(`/products/${id}?permanent=${permanent}`, { method: 'DELETE' });
+  },
+
+  async bulkDeleteProducts(productIds: string[], deleteAll: boolean = false, catalogId?: string): Promise<{ successfulCount: number; message: string }> {
+    const res = await apiFetch<any>('/products/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({
+        product_ids: productIds,
+        delete_all: deleteAll,
+        catalog_id: catalogId,
+        permanent: true,
+      }),
+    });
+    return {
+      successfulCount: res?.data?.successful_count ?? productIds.length,
+      message: res?.data?.message || 'Deleted successfully',
+    };
   },
 
   async updateProduct(id: string, payload: Partial<Product>): Promise<Product | null> {

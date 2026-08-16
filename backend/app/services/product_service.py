@@ -101,6 +101,24 @@ class ProductService:
     async def create_product(
         cls, db: AsyncSession, organization_id: str, data: ProductCreate
     ) -> Product:
+        # Avoid exact duplicate: check if SKU already exists for this organization
+        if data.sku:
+            dup_stmt = select(Product).where(
+                Product.organization_id == organization_id,
+                Product.is_deleted == False,
+                func.lower(Product.sku) == func.lower(data.sku.strip())
+            )
+            existing = (await db.execute(dup_stmt)).scalars().first()
+            if existing:
+                existing.name = data.name or existing.name
+                existing.description = data.description or existing.description
+                existing.manufacturer = data.manufacturer or existing.manufacturer
+                existing.category = data.category or existing.category
+                existing.raw_attributes = data.raw_attributes or existing.raw_attributes
+                await db.commit()
+                await cache.invalidate_tags(["products", "analytics"])
+                return existing
+
         scores = ConfidenceScorer.calculate_product_scores(
             attributes=[], expected_attribute_count=8
         )
@@ -349,13 +367,77 @@ class ProductService:
 
     @classmethod
     async def delete_product(
-        cls, db: AsyncSession, organization_id: str, product_id: str
+        cls, db: AsyncSession, organization_id: str, product_id: str, permanent: bool = True
     ) -> bool:
+        from sqlalchemy import delete
+        from app.db.models.job import ValidationIssue, EnrichmentSuggestion, AIInsight
+        from app.db.models.product import ProductAttribute, ProductSource
+
         product = await cls.get_product(db, organization_id, product_id)
-        product.is_deleted = True
+        if permanent:
+            await db.execute(delete(ProductAttribute).where(ProductAttribute.product_id == product_id))
+            await db.execute(delete(ProductSource).where(ProductSource.product_id == product_id))
+            await db.execute(delete(ValidationIssue).where(ValidationIssue.product_id == product_id))
+            await db.execute(delete(EnrichmentSuggestion).where(EnrichmentSuggestion.product_id == product_id))
+            await db.execute(delete(AIInsight).where(AIInsight.product_id == product_id))
+            await db.delete(product)
+        else:
+            product.is_deleted = True
+            
         await db.commit()
-        await cache.invalidate_tags(["products", "analytics"])
+        await cache.invalidate_tags(["products", "catalogs", "analytics"])
         return True
+
+    @classmethod
+    async def bulk_delete_products(
+        cls, db: AsyncSession, organization_id: str, product_ids: List[str], permanent: bool = True
+    ) -> int:
+        from sqlalchemy import delete, update
+        from app.db.models.job import ValidationIssue, EnrichmentSuggestion, AIInsight
+        from app.db.models.product import ProductAttribute, ProductSource
+
+        if not product_ids:
+            return 0
+
+        if permanent:
+            await db.execute(delete(ProductAttribute).where(ProductAttribute.product_id.in_(product_ids)))
+            await db.execute(delete(ProductSource).where(ProductSource.product_id.in_(product_ids)))
+            await db.execute(delete(ValidationIssue).where(ValidationIssue.product_id.in_(product_ids)))
+            await db.execute(delete(EnrichmentSuggestion).where(EnrichmentSuggestion.product_id.in_(product_ids)))
+            await db.execute(delete(AIInsight).where(AIInsight.product_id.in_(product_ids)))
+            res = await db.execute(
+                delete(Product).where(
+                    Product.organization_id == organization_id,
+                    Product.id.in_(product_ids)
+                )
+            )
+            deleted_count = res.rowcount
+        else:
+            res = await db.execute(
+                update(Product)
+                .where(
+                    Product.organization_id == organization_id,
+                    Product.id.in_(product_ids)
+                )
+                .values(is_deleted=True)
+            )
+            deleted_count = res.rowcount
+
+        await db.commit()
+        await cache.invalidate_tags(["products", "catalogs", "analytics"])
+        return deleted_count
+
+    @classmethod
+    async def delete_all_products(
+        cls, db: AsyncSession, organization_id: str, catalog_id: Optional[str] = None
+    ) -> int:
+        query = select(Product.id).where(Product.organization_id == organization_id)
+        if catalog_id:
+            query = query.where(Product.catalog_id == catalog_id)
+        ids = (await db.execute(query)).scalars().all()
+        if ids:
+            return await cls.bulk_delete_products(db, organization_id, list(ids), permanent=True)
+        return 0
 
     @classmethod
     async def get_categories(cls, db: AsyncSession, organization_id: str) -> List[str]:

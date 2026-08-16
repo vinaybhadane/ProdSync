@@ -4,9 +4,10 @@ Executes the complete 15-stage AI Product Intelligence Pipeline with parallel ba
 """
 
 import asyncio
+import json
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
-from sqlalchemy import select
+from sqlalchemy import func, or_, and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.confidence.confidence_scorer import ConfidenceScorer
 from app.ai.normalization.brand_normalizer import brand_normalizer
@@ -225,6 +226,7 @@ class ProcessingService:
                         })
 
             created_products_count = 0
+            processed_products_count = 0
             total_attributes_extracted = 0
             total_validation_issues = 0
 
@@ -270,48 +272,91 @@ class ProcessingService:
                     feature_name=prod_data.get("feature_name"),
                 )
 
-                # Create Product entity
-                product = Product(
-                    organization_id=organization_id,
-                    catalog_id=catalog_id,
-                    sku=TextNormalizer.normalize_sku(mpn),
-                    name=unilog_descriptions["product_title"],
-                    description=unilog_descriptions["long_description"],
-                    manufacturer=norm_mfg,
-                    manufacturer_part_number=mpn,
-                    category=category,
-                    status="needs_review",
-                    validation_status="needs_review",
-                    brand=norm_brand,
-                    series=prod_data.get("series", "Professional Series"),
-                    classpath=classpath,
-                    unspsc=prod_data.get("unspsc", "40151500"),
-                    invoice_desc=unilog_descriptions["invoice_desc"],
-                    mobile_desc=unilog_descriptions["mobile_desc"],
-                    product_title=unilog_descriptions["product_title"],
-                    long_description=unilog_descriptions["long_description"],
-                    bullet_features=unilog_descriptions["bullet_features"],
-                    raw_attributes={a.get("key", f"k_{i}"): a.get("value") for i, a in enumerate(raw_attrs)},
-                )
-                db.add(product)
-                await db.flush()
+                norm_sku = TextNormalizer.normalize_sku(mpn)
 
-                # Add Source Document Provenance
-                source = ProductSource(
-                    product_id=product.id,
-                    name=filename,
-                    source_type=file_type.lower(),
-                    filename=filename,
-                    blob_path=blob_path,
-                    attribute_count=len(raw_attrs),
-                    confidence=96.0,
+                # Avoid exact duplicate products: check if product exists by SKU or MPN
+                dup_stmt = select(Product).where(
+                    Product.organization_id == organization_id,
+                    Product.is_deleted == False,
+                    or_(
+                        func.lower(Product.sku) == func.lower(norm_sku),
+                        and_(
+                            func.lower(Product.manufacturer) == func.lower(norm_mfg),
+                            func.lower(Product.manufacturer_part_number) == func.lower(mpn)
+                        )
+                    )
                 )
-                db.add(source)
-                await db.flush()
+                existing_product = (await db.execute(dup_stmt)).scalars().first()
+
+                if existing_product:
+                    product = existing_product
+                    product.name = unilog_descriptions["product_title"]
+                    product.description = unilog_descriptions["long_description"]
+                    product.brand = norm_brand
+                    product.manufacturer = norm_mfg
+                    product.category = category
+                    product.series = prod_data.get("series", product.series or "Professional Series")
+                    product.product_title = unilog_descriptions["product_title"]
+                    product.long_description = unilog_descriptions["long_description"]
+                    product.bullet_features = unilog_descriptions["bullet_features"]
+                    product.raw_attributes = {a.get("key", f"k_{i}"): a.get("value") for i, a in enumerate(raw_attrs)}
+                    logger.info(f"Duplicate product detected for SKU '{norm_sku}'. Updating existing product ID {product.id}.")
+                else:
+                    # Create new Product entity
+                    product = Product(
+                        organization_id=organization_id,
+                        catalog_id=catalog_id,
+                        sku=norm_sku,
+                        name=unilog_descriptions["product_title"],
+                        description=unilog_descriptions["long_description"],
+                        manufacturer=norm_mfg,
+                        manufacturer_part_number=mpn,
+                        category=category,
+                        status="needs_review",
+                        validation_status="needs_review",
+                        brand=norm_brand,
+                        series=prod_data.get("series", "Professional Series"),
+                        classpath=classpath,
+                        unspsc=prod_data.get("unspsc", "40151500"),
+                        invoice_desc=unilog_descriptions["invoice_desc"],
+                        mobile_desc=unilog_descriptions["mobile_desc"],
+                        product_title=unilog_descriptions["product_title"],
+                        long_description=unilog_descriptions["long_description"],
+                        bullet_features=unilog_descriptions["bullet_features"],
+                        raw_attributes={a.get("key", f"k_{i}"): a.get("value") for i, a in enumerate(raw_attrs)},
+                    )
+                    db.add(product)
+                    await db.flush()
+                    created_products_count += 1
+
+                # Add Source Document Provenance (avoid duplicate source entry)
+                src_stmt = select(ProductSource).where(
+                    ProductSource.product_id == product.id,
+                    ProductSource.filename == filename,
+                )
+                existing_src = (await db.execute(src_stmt)).scalars().first()
+                if not existing_src:
+                    source = ProductSource(
+                        product_id=product.id,
+                        name=filename,
+                        source_type=file_type.lower(),
+                        filename=filename,
+                        blob_path=blob_path,
+                        attribute_count=len(raw_attrs),
+                        confidence=96.0,
+                    )
+                    db.add(source)
+                    await db.flush()
+
+                # Fetch existing attributes for this product to prevent duplicate attribute rows
+                existing_attrs_stmt = select(ProductAttribute).where(ProductAttribute.product_id == product.id)
+                existing_attrs_map = {
+                    a.attribute_key: a for a in (await db.execute(existing_attrs_stmt)).scalars().all()
+                }
 
                 processed_attributes = []
                 for attr_item in raw_attrs:
-                    key = attr_item.get("key", "attr")
+                    key = attr_item.get("key", "attr").lower().replace(" ", "_")
                     display_name = attr_item.get("display_name", key.replace("_", " ").title())
                     val = str(attr_item.get("value", ""))
                     unit = attr_item.get("unit")
@@ -322,21 +367,32 @@ class ProcessingService:
                     if norm_val:
                         norm_val = decimal_fraction_converter.format_dimension_fraction(norm_val)
 
-                    attr = ProductAttribute(
-                        product_id=product.id,
-                        attribute_key=key,
-                        display_name=display_name,
-                        value=val,
-                        normalized_value=norm_val,
-                        unit=norm_unit or unit,
-                        status="verified" if conf >= 0.95 else "ai_validated",
-                        confidence=round(conf * 100.0, 1),
-                        source_name=filename,
-                        source_type=file_type.lower(),
-                        ai_reason=attr_item.get("source_reference", f"Extracted from {filename}"),
-                        is_ai_generated=False,
-                    )
-                    db.add(attr)
+                    if key in existing_attrs_map:
+                        # Update existing attribute in place
+                        existing_attr = existing_attrs_map[key]
+                        existing_attr.value = val
+                        existing_attr.normalized_value = norm_val
+                        existing_attr.unit = norm_unit or unit
+                        existing_attr.confidence = round(conf * 100.0, 1)
+                        existing_attr.source_name = filename
+                    else:
+                        # Insert new attribute
+                        attr = ProductAttribute(
+                            product_id=product.id,
+                            attribute_key=key,
+                            display_name=display_name,
+                            value=val,
+                            normalized_value=norm_val,
+                            unit=norm_unit or unit,
+                            status="verified" if conf >= 0.95 else "ai_validated",
+                            confidence=round(conf * 100.0, 1),
+                            source_name=filename,
+                            source_type=file_type.lower(),
+                            ai_reason=attr_item.get("source_reference", f"Extracted from {filename}"),
+                            is_ai_generated=False,
+                        )
+                        db.add(attr)
+
                     processed_attributes.append({
                         "key": key,
                         "display_name": display_name,
@@ -397,13 +453,10 @@ class ProcessingService:
                 )
                 product.data_quality_score = scores["data_quality_score"]
                 product.ai_confidence_score = scores["ai_confidence_score"]
-                product.completeness_score = scores["completeness_score"]
-                product.validation_status = "verified" if len(issues) == 0 else "needs_review"
-
-                created_products_count += 1
+                processed_products_count += 1
 
             # Update Catalog product count if catalog_id present
-            if catalog_id:
+            if catalog_id and created_products_count > 0:
                 cat_stmt = select(Catalog).where(Catalog.id == catalog_id)
                 catalog = (await db.execute(cat_stmt)).scalar_one_or_none()
                 if catalog:

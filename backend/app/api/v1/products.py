@@ -118,11 +118,12 @@ async def update_product(
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_product(
     product_id: str,
+    permanent: bool = Query(True, description="Permanently delete product and all associated attributes"),
     current_user: CurrentUser = Depends(require_role(["owner", "admin", "manager"])),
     db: AsyncSession = Depends(get_db),
 ):
     await product_service.delete_product(
-        db=db, organization_id=current_user.organization_id, product_id=product_id
+        db=db, organization_id=current_user.organization_id, product_id=product_id, permanent=permanent
     )
     return None
 
@@ -241,6 +242,38 @@ async def reject_enrichment_suggestion(
     return ApiResponse(data={"message": "Suggestion rejected.", "id": sugg.id})
 
 
+@router.post("/bulk-delete", response_model=ApiResponse[BulkActionResponse])
+async def bulk_delete_products_endpoint(
+    body: Dict[str, Any] = Body(...),
+    current_user: CurrentUser = Depends(require_role(["owner", "admin", "manager"])),
+    db: AsyncSession = Depends(get_db),
+):
+    product_ids = body.get("product_ids", [])
+    delete_all = body.get("delete_all", False)
+    catalog_id = body.get("catalog_id")
+    permanent = body.get("permanent", True)
+
+    if delete_all:
+        deleted = await product_service.delete_all_products(db, current_user.organization_id, catalog_id=catalog_id)
+        return ApiResponse(data=BulkActionResponse(
+            successful_count=deleted,
+            failed_count=0,
+            message=f"Permanently deleted all {deleted} products from the catalog."
+        ))
+
+    deleted = await product_service.bulk_delete_products(
+        db=db,
+        organization_id=current_user.organization_id,
+        product_ids=product_ids,
+        permanent=permanent,
+    )
+    return ApiResponse(data=BulkActionResponse(
+        successful_count=deleted,
+        failed_count=max(0, len(product_ids) - deleted),
+        message=f"Permanently deleted {deleted} products."
+    ))
+
+
 @router.post("/bulk/action", response_model=ApiResponse[BulkActionResponse])
 async def bulk_action(
     data: BulkActionRequest,
@@ -248,12 +281,16 @@ async def bulk_action(
     db: AsyncSession = Depends(get_db),
 ):
     if data.action == "delete":
-        for pid in data.product_ids:
-            await product_service.delete_product(db, current_user.organization_id, pid)
+        deleted = await product_service.bulk_delete_products(
+            db=db,
+            organization_id=current_user.organization_id,
+            product_ids=data.product_ids,
+            permanent=True,
+        )
         return ApiResponse(data=BulkActionResponse(
-            successful_count=len(data.product_ids),
-            failed_count=0,
-            message=f"Successfully deleted {len(data.product_ids)} products."
+            successful_count=deleted,
+            failed_count=max(0, len(data.product_ids) - deleted),
+            message=f"Successfully deleted {deleted} products permanently."
         ))
 
     if data.action == "enrich":
