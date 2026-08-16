@@ -58,6 +58,16 @@ async def get_direct_upload_url(
     return ApiResponse(data=url_res)
 
 
+@imports_router.get("/file", response_model=ApiResponse)
+async def file_import_info():
+    return ApiResponse(data={
+        "endpoint": "/imports/file",
+        "method": "POST",
+        "description": "Upload a PDF, CSV, XLSX, or image file as multipart/form-data with key 'file'.",
+        "supported_formats": ["csv", "xlsx", "pdf", "png", "jpg", "jpeg", "webp", "json"]
+    })
+
+
 @imports_router.post("/file", response_model=ApiResponse[ProcessingJobResponse])
 async def direct_file_upload(
     file: UploadFile = File(...),
@@ -95,6 +105,16 @@ async def import_from_url(
         catalog_id=request.catalog_id,
     )
     return ApiResponse(data=ProcessingJobResponse.model_validate(job))
+
+
+@imports_router.get("/ocr-scan", response_model=ApiResponse)
+async def ocr_scan_info():
+    return ApiResponse(data={
+        "endpoint": "/imports/ocr-scan",
+        "method": "POST",
+        "description": "Upload a product nameplate image as multipart/form-data with key 'file' for OCR extraction.",
+        "supported_formats": ["png", "jpg", "jpeg", "webp", "bmp", "tiff"]
+    })
 
 
 @imports_router.post("/ocr-scan", response_model=ApiResponse)
