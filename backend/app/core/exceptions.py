@@ -78,6 +78,15 @@ class RateLimitException(ProdSyncException):
         )
 
 
+class APIQuotaExceededException(ProdSyncException):
+    def __init__(self, message: str = "Google Gemini API rate limit or quota exceeded. Please wait a moment and try again, or check your API key quota."):
+        super().__init__(
+            code="AI_API_LIMIT_HIT",
+            message=message,
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS
+        )
+
+
 async def prodsync_exception_handler(request: Request, exc: ProdSyncException) -> JSONResponse:
     request_id = getattr(request.state, "request_id", "req-unknown")
     return JSONResponse(

@@ -529,6 +529,43 @@ export const liveProcessingService = {
       return [];
     }
   },
+
+  async getJobStatus(jobId: string): Promise<ProcessingJob | null> {
+    try {
+      const res = await apiFetch<any>(`/processing/${jobId}`);
+      const job = res.data;
+      if (!job) return null;
+      return {
+        id: job.id,
+        catalogId: job.catalog_id,
+        productId: job.product_id,
+        filename: job.filename,
+        sourceType: (job.source_type || 'pdf') as any,
+        status: job.status,
+        stages: (job.stages || []).map((s: any) => ({
+          name: s.name || 'Stage',
+          label: s.label || s.name || 'Stage',
+          status: s.status || 'pending',
+          progress: s.progress || 0,
+          errorMessage: s.error_message,
+        })),
+        progress: job.progress || 0,
+        currentStage: job.current_stage || 'Processing',
+        productCount: job.product_count || 0,
+        totalProducts: job.total_products || job.product_count || 0,
+        processedProducts: job.processed_products || job.product_count || 0,
+        failedProducts: job.status === 'failed' ? 1 : 0,
+        attributesExtracted: job.attributes_extracted || 0,
+        validationIssues: job.validation_issues || 0,
+        errorMessage: job.error_message,
+        createdAt: job.created_at || new Date().toISOString(),
+        completedAt: job.completed_at,
+      };
+    } catch (e) {
+      console.warn('Failed to fetch job status:', e);
+      return null;
+    }
+  },
 };
 
 // -------------------------------------------------------------

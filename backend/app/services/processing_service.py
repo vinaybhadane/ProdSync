@@ -177,20 +177,52 @@ class ProcessingService:
             if not doc_bytes:
                 doc_bytes = b"Sample industrial product specification data."
 
-            # 2. Document Intelligence OCR / Extraction
+            # 2. Document Intelligence OCR / Tabular Extraction
             job.current_stage = "Text Extraction"
             job.progress = 25
             doc_data = await document_intelligence_service.analyze_document(doc_bytes, file_type)
             extracted_text = doc_data.get("full_text", "")
+            raw_records = doc_data.get("records", [])
 
-            # 3. Azure OpenAI / Gemini Product Detection & Structured Extraction
+            # 3. Google Gemini Product Detection & Structured Extraction
             job.current_stage = "Product Detection & Extraction"
             job.progress = 50
+
+            # Build prompt with real extracted data
+            if raw_records:
+                sample_records = raw_records[:60]
+                llm_input = (
+                    f"Document Filename: {filename}\n"
+                    f"Real Tabular Records ({len(sample_records)} items):\n"
+                    f"{json.dumps(sample_records, indent=1)[:18000]}"
+                )
+            else:
+                llm_input = f"Document Filename: {filename}\nContent:\n{extracted_text[:14000]}"
+
             ai_result = await openai_service.generate_structured_json(
                 system_prompt=PRODUCT_EXTRACTION_SYSTEM_PROMPT,
-                user_content=f"Document Filename: {filename}\nContent:\n{extracted_text[:12000]}",
+                user_content=llm_input,
             )
             extracted_products = ai_result.get("data", {}).get("products", [])
+
+            # If no products were extracted, parse direct fields from tabular records if available
+            if not extracted_products and raw_records:
+                for row in raw_records[:50]:
+                    name = row.get("name") or row.get("Product_Name") or row.get("title") or row.get("Item_Name") or row.get("Description")
+                    sku = row.get("sku") or row.get("SKU") or row.get("mpn") or row.get("Part_Number") or row.get("Item_ID")
+                    if name or sku:
+                        attrs = []
+                        for k, v in row.items():
+                            if k not in ["name", "Product_Name", "title", "sku", "SKU", "mpn", "Part_Number", "description"]:
+                                attrs.append({"key": str(k).lower().replace(" ", "_"), "display_name": str(k), "value": str(v), "confidence": 0.95})
+                        extracted_products.append({
+                            "name": name or f"Product {sku}",
+                            "sku": sku or f"SKU-{abs(hash(name or '')) % 100000}",
+                            "manufacturer": row.get("manufacturer") or row.get("Manufacturer") or row.get("Brand") or "Industrial",
+                            "category": row.get("category") or row.get("Category") or "Industrial Equipment",
+                            "description": row.get("description") or name or "Extracted product record",
+                            "attributes": attrs,
+                        })
 
             created_products_count = 0
             total_attributes_extracted = 0
@@ -414,9 +446,24 @@ class ProcessingService:
             return job
 
         except Exception as e:
-            logger.error(f"Pipeline failure on job {job_id}: {e}")
+            err_str = str(e)
+            is_quota = "quota" in err_str.lower() or "429" in err_str or "resource_exhausted" in err_str.lower() or "limit" in err_str.lower()
+            friendly_err = (
+                "Google Gemini AI rate limit is hit (Quota 429). Please wait a few moments before re-analyzing, or check your API key quota."
+                if is_quota else f"Processing error: {err_str}"
+            )
+            logger.error(f"Pipeline failure on job {job_id}: {friendly_err}")
             job.status = "failed"
-            job.error_message = str(e)
+            job.error_message = friendly_err
+            
+            db.add(Notification(
+                organization_id=organization_id,
+                type="warning" if is_quota else "error",
+                title="AI Rate Limit Hit" if is_quota else "Processing Failed",
+                description=f"'{filename}': {friendly_err}",
+                action_label="Retry Import",
+                action_href="/app/import",
+            ))
             await db.commit()
             return job
 

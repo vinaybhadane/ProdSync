@@ -1,20 +1,21 @@
 """
-Unified LLM Client Integration — Resilient, Production-Hardened
-Supports Google Gemini, Azure OpenAI, Standard OpenAI, Exponential Backoff with Jitter, and Intelligent Local Fallback
+Unified AI Service — Powered by Google Gemini & Azure OpenAI
+Enforces strict real data processing with explicit API quota limit error reporting.
 """
 
 import asyncio
 import json
+import logging
 import random
 import re
 from typing import Any, Dict, List, Optional
 from app.core.config import settings
+from app.core.exceptions import APIQuotaExceededException, ValidationException
 from app.core.logging import logger
 from app.utils.json_repair import repair_and_load_json
 
 try:
     from google import genai
-    from google.genai import types
     GENAI_AVAILABLE = True
 except ImportError:
     GENAI_AVAILABLE = False
@@ -28,48 +29,44 @@ except ImportError:
 
 class UnifiedLLMService:
     def __init__(self):
+        self.provider = "gemini" if (GENAI_AVAILABLE and settings.GEMINI_API_KEY) else "local"
+        self.gemini_client: Optional[Any] = None
+        self.openai_client: Optional[Any] = None
+        self.gemini_model = settings.GEMINI_MODEL or "gemini-3.5-flash-lite"
         self.gemini_key = settings.GEMINI_API_KEY
-        self.gemini_model = settings.GEMINI_MODEL or "gemini-flash-latest"
-        self.endpoint = settings.AZURE_OPENAI_ENDPOINT
-        self.azure_api_key = settings.AZURE_OPENAI_API_KEY
-        self.standard_api_key = settings.OPENAI_API_KEY
-        self.deployment = settings.AZURE_OPENAI_DEPLOYMENT_NAME or "gpt-4o"
-        self.api_version = settings.AZURE_OPENAI_API_VERSION
-        
-        self.gemini_client = None
-        self.openai_client = None
-        self.provider = "fallback"
+        self.deployment = settings.AZURE_OPENAI_DEPLOYMENT or "gpt-4o"
 
-        # 1. Check Google Gemini (Official google-genai SDK)
-        if GENAI_AVAILABLE and self.gemini_key and len(self.gemini_key) > 10:
+        # Initialize Google Gemini Client
+        if GENAI_AVAILABLE and self.gemini_key:
             try:
                 self.gemini_client = genai.Client(api_key=self.gemini_key)
                 self.provider = "gemini"
-                logger.info(f"Google Gemini client initialized with model: {self.gemini_model}")
+                logger.info(f"Google Gemini client initialized with primary model '{self.gemini_model}'.")
             except Exception as e:
-                logger.warning(f"Google Gemini client initialization notice: {e}")
+                logger.warning(f"Google Gemini init notice: {e}")
 
-        # 2. Check Azure OpenAI
-        elif OPENAI_AVAILABLE and self.endpoint and self.azure_api_key and "your_" not in self.azure_api_key:
+        # Initialize OpenAI / Azure OpenAI Client
+        if OPENAI_AVAILABLE and settings.AZURE_OPENAI_API_KEY and settings.AZURE_OPENAI_ENDPOINT:
             try:
                 self.openai_client = AsyncAzureOpenAI(
-                    azure_endpoint=self.endpoint,
-                    api_key=self.azure_api_key,
-                    api_version=self.api_version,
+                    azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+                    api_key=settings.AZURE_OPENAI_API_KEY,
+                    api_version=settings.AZURE_OPENAI_API_VERSION or "2024-02-15-preview",
                 )
-                self.provider = "azure_openai"
+                if not self.gemini_client:
+                    self.provider = "azure_openai"
                 logger.info("Azure OpenAI client initialized.")
             except Exception as e:
-                logger.warning(f"Azure OpenAI client notice: {e}")
+                logger.warning(f"Azure OpenAI init notice: {e}")
 
-        # 3. Check Standard OpenAI
-        elif OPENAI_AVAILABLE and self.standard_api_key and self.standard_api_key.startswith("sk-"):
+        elif OPENAI_AVAILABLE and settings.OPENAI_API_KEY:
             try:
-                self.openai_client = AsyncOpenAI(api_key=self.standard_api_key)
-                self.provider = "openai"
-                logger.info("Standard OpenAI client initialized.")
+                self.openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+                if not self.gemini_client:
+                    self.provider = "openai"
+                logger.info("OpenAI client initialized.")
             except Exception as e:
-                logger.warning(f"Standard OpenAI client notice: {e}")
+                logger.warning(f"OpenAI init notice: {e}")
 
     async def generate_structured_json(
         self,
@@ -77,13 +74,17 @@ class UnifiedLLMService:
         user_content: str,
         temperature: float = 0.1,
         max_tokens: int = 4000,
-        max_retries: int = 3,
+        max_retries: int = 2,
     ) -> Dict[str, Any]:
         """
-        Executes a prompt requesting strict structured JSON with exponential backoff & jitter.
+        Executes an AI prompt requesting strict structured JSON.
+        Cascades through active Gemini models.
+        If API quota limits are hit, explicitly raises APIQuotaExceededException.
         """
+        quota_hit_messages = []
+
         # --- 1. Google Gemini ---
-        if self.gemini_client and self.provider == "gemini":
+        if self.gemini_client and self.gemini_key:
             candidate_models = [
                 self.gemini_model,
                 "gemini-3.5-flash-lite",
@@ -97,14 +98,14 @@ class UnifiedLLMService:
             full_prompt = (
                 f"{system_prompt}\n\n"
                 "CRITICAL: Output must be pure valid JSON ONLY without any markdown formatting, preamble, or explanations.\n\n"
-                f"INPUT DOCUMENT:\n{user_content}"
+                f"INPUT DOCUMENT DATA:\n{user_content}"
             )
 
             for model_candidate in candidate_models:
                 if not model_candidate:
                     continue
                 try:
-                    logger.info(f"Invoking Gemini model '{model_candidate}'...")
+                    logger.info(f"Invoking Gemini model '{model_candidate}' for analysis...")
                     response = await asyncio.to_thread(
                         self.gemini_client.models.generate_content,
                         model=model_candidate,
@@ -114,7 +115,7 @@ class UnifiedLLMService:
                     raw_text = response.text or "{}"
                     data = repair_and_load_json(raw_text)
                     if data and isinstance(data, dict) and len(data) > 0:
-                        logger.info(f"Gemini model '{model_candidate}' successfully returned structured JSON with keys: {list(data.keys())}")
+                        logger.info(f"Gemini model '{model_candidate}' successfully returned structured JSON.")
                         return {
                             "data": data,
                             "model": model_candidate,
@@ -124,7 +125,11 @@ class UnifiedLLMService:
                         }
                 except Exception as e:
                     err_str = str(e)
-                    logger.warning(f"Gemini model '{model_candidate}' notice: {err_str[:120]} — cascading to next candidate model.")
+                    if "RESOURCE_EXHAUSTED" in err_str or "429" in err_str or "quota" in err_str.lower():
+                        logger.warning(f"Gemini rate limit on '{model_candidate}': {err_str[:120]}")
+                        quota_hit_messages.append(f"{model_candidate}: rate limit / quota reached")
+                    else:
+                        logger.warning(f"Gemini model '{model_candidate}' error: {err_str[:120]}")
                     continue
 
         # --- 2. OpenAI / Azure OpenAI ---
@@ -143,130 +148,81 @@ class UnifiedLLMService:
                 )
                 raw_text = response.choices[0].message.content or "{}"
                 data = repair_and_load_json(raw_text)
-                
-                usage = response.usage
-                return {
-                    "data": data,
-                    "model": model_name,
-                    "provider": self.provider,
-                    "input_tokens": usage.prompt_tokens if usage else 0,
-                    "output_tokens": usage.completion_tokens if usage else 0,
-                }
+                if data and isinstance(data, dict) and len(data) > 0:
+                    usage = response.usage
+                    return {
+                        "data": data,
+                        "model": model_name,
+                        "provider": self.provider,
+                        "input_tokens": usage.prompt_tokens if usage else 0,
+                        "output_tokens": usage.completion_tokens if usage else 0,
+                    }
             except Exception as e:
                 logger.warning(f"OpenAI execution notice: {e}")
 
-        # --- 3. Deterministic Local Engine Fallback ---
-        return self._local_intelligent_fallback(system_prompt, user_content)
+        # --- 3. If Quota / Rate Limit was encountered on AI API, raise explicit limit exception ---
+        if quota_hit_messages:
+            error_msg = (
+                "Google Gemini AI rate limit is hit (Quota 429). "
+                "Please wait a few moments before re-analyzing, or check your API key quota."
+            )
+            logger.error(error_msg)
+            raise APIQuotaExceededException(error_msg)
 
-    def _local_intelligent_fallback(self, system_prompt: str, user_content: str) -> Dict[str, Any]:
-        content_lower = user_content.lower()
+        # --- 4. Real Data Tabular Extraction Fallback (Parses ONLY user's actual data lines) ---
+        return self._extract_real_data_from_content(user_content)
+
+    def _extract_real_data_from_content(self, user_content: str) -> Dict[str, Any]:
+        """
+        Parses actual tabular/line data from the input content directly without hallucinating dummy records.
+        """
+        lines = [l.strip() for l in user_content.split("\n") if l.strip() and not l.startswith("Document Filename:")]
         products = []
 
-        # Unilog Ground Truth Worked Example: Frigidaire Dishwasher PDSH4816AF
-        if "pdsh" in content_lower or "dishwasher" in content_lower:
-            products.append({
-                "name": "FRIGIDAIRE® Professional Series PDSH4816AF Dishwasher With CleanBoost™",
-                "sku": "PDSH4816AF",
-                "brand": "FRIGIDAIRE®",
-                "manufacturer": "Rheem Manufacturing Company",
-                "series": "Professional Series",
-                "category": "Kitchen Appliances",
-                "classpath": "Appliances & Consumer Electronics > Kitchen Appliances > Built-In Dishwashers",
-                "unspsc": "40151500",
-                "feature_name": "CleanBoost™",
-                "description": "FRIGIDAIRE® Dishwasher With CleanBoost™, Professional Series, 5 Wash Cycles, 120 V, 15 A, Leg Mounting, 24 in W x 24-1/4 in D, 50-1/4 in Depth With Door Open, 47 dBA Sound Level, Stainless Steel.",
-                "attributes": [
-                    {"key": "mounting", "display_name": "Mounting", "value": "Leg", "unit": None, "confidence": 0.99, "source_reference": "Section 1"},
-                    {"key": "wash_cycles", "display_name": "Wash Cycles", "value": "5", "unit": None, "confidence": 0.98, "source_reference": "Specification Table"},
-                    {"key": "voltage", "display_name": "Voltage", "value": "120", "unit": "V", "confidence": 1.0, "source_reference": "Electrical Rating"},
-                    {"key": "amperage", "display_name": "Amperage", "value": "15", "unit": "A", "confidence": 1.0, "source_reference": "Electrical Rating"},
-                    {"key": "sound_level", "display_name": "Sound Level", "value": "47", "unit": "dBA", "confidence": 0.96, "source_reference": "Acoustic Rating"},
-                    {"key": "depth_open", "display_name": "Depth With Door Open", "value": "50.25", "unit": "in", "confidence": 0.95, "source_reference": "Dimensional Specs"},
-                    {"key": "material", "display_name": "Material", "value": "Stainless Steel", "unit": None, "confidence": 0.99, "source_reference": "Finish Specs"},
-                ]
-            })
+        for line in lines:
+            if line.startswith("{") and line.endswith("}"):
+                try:
+                    obj = json.loads(line)
+                    if isinstance(obj, dict):
+                        name = obj.get("name") or obj.get("Product_Name") or obj.get("title") or obj.get("Item_Name")
+                        sku = obj.get("sku") or obj.get("SKU") or obj.get("mpn") or obj.get("Part_Number") or obj.get("ID")
+                        if name or sku:
+                            attrs = []
+                            for k, v in obj.items():
+                                if k not in ["name", "Product_Name", "title", "sku", "SKU", "mpn", "Part_Number", "id", "ID"]:
+                                    attrs.append({"key": str(k).lower().replace(" ", "_"), "display_name": str(k), "value": str(v), "confidence": 0.95})
+                            products.append({
+                                "name": name or f"Product {sku}",
+                                "sku": sku or f"SKU-{abs(hash(name or '')) % 100000}",
+                                "brand": obj.get("brand") or obj.get("Brand") or "Industrial",
+                                "manufacturer": obj.get("manufacturer") or obj.get("Manufacturer") or "Manufacturer",
+                                "category": obj.get("category") or obj.get("Category") or "Industrial Supplies",
+                                "description": obj.get("description") or name or "Extracted product record",
+                                "attributes": attrs,
+                            })
+                except Exception:
+                    pass
 
-        # FluidTech Hydraulic Pump HP-4500
-        if "pump" in content_lower or "hp-4500" in content_lower or "fluid" in content_lower:
+        if not products and lines:
+            # Fallback: create product from first real line of content
+            first_line = lines[0][:100]
             products.append({
-                "name": "FLUIDTECH™ HP-4500 High Pressure Hydraulic Pump",
-                "sku": "HP-4500",
-                "brand": "FLUIDTECH™",
-                "manufacturer": "FluidTech Industries, Inc.",
-                "series": "HP Heavy Series",
-                "category": "Hydraulic Equipment",
-                "classpath": "Industrial Supplies > Hydraulics & Pneumatics > Hydraulic Pumps & Motors",
-                "unspsc": "40151500",
-                "description": "FLUIDTECH™ HP-4500 Hydraulic Pump, 250 bar Operating Pressure, 120 L/min Flow Rate, 400 V, Stainless Steel.",
-                "attributes": [
-                    {"key": "operating_pressure", "display_name": "Operating Pressure", "value": "250", "unit": "bar", "confidence": 0.98, "source_reference": "Page 4, Section 3.2"},
-                    {"key": "flow_rate", "display_name": "Flow Rate", "value": "120", "unit": "L/min", "confidence": 0.97, "source_reference": "Page 4, Technical Specs"},
-                    {"key": "material", "display_name": "Material", "value": "Stainless Steel", "unit": None, "confidence": 0.99, "source_reference": "Page 2, Construction"},
-                    {"key": "voltage", "display_name": "Voltage", "value": "400", "unit": "V", "confidence": 1.0, "source_reference": "Page 5, Electrical"},
-                    {"key": "ip_rating", "display_name": "IP Rating", "value": "IP65", "unit": None, "confidence": 0.95, "source_reference": "Page 5, Enclosure"},
-                    {"key": "weight", "display_name": "Weight", "value": "18.5", "unit": "kg", "confidence": 0.83, "source_reference": "Inferred from family specs"},
-                ]
-            })
-
-        # ValveMaster Control Valve PCV-200
-        if "valve" in content_lower or "pcv" in content_lower:
-            products.append({
-                "name": "VALVEMASTER™ PCV-200 Proportional Pressure Control Valve",
-                "sku": "PCV-200",
-                "brand": "VALVEMASTER™",
-                "manufacturer": "ValveMaster Control Systems LLC",
-                "series": "PCV Series",
-                "category": "Control Valves",
-                "classpath": "Plumbing & Flow Control > Valves > Control & Check Valves",
-                "unspsc": "40141600",
-                "description": "VALVEMASTER™ Proportional pressure control valve, 200 bar max pressure, DN50 connection size.",
-                "attributes": [
-                    {"key": "max_pressure", "display_name": "Max Pressure", "value": "200", "unit": "bar", "confidence": 0.94, "source_reference": "Datasheet Section 1"},
-                    {"key": "connection_size", "display_name": "Connection Size", "value": "DN50", "unit": None, "confidence": 0.89, "source_reference": "Datasheet Section 2"},
-                ]
-            })
-
-        if not products:
-            lines = [l.strip() for l in user_content.split("\n") if l.strip()]
-            sample_name = lines[0][:64] if lines else "Industrial Component"
-            products.append({
-                "name": sample_name,
-                "sku": "SKU-" + str(abs(hash(sample_name)) % 10000),
-                "manufacturer": "Industrial Manufacturer",
+                "name": first_line,
+                "sku": f"SKU-{abs(hash(first_line)) % 100000}",
+                "manufacturer": "Extracted from document",
                 "category": "General Industrial",
-                "description": "Extracted industrial product specification record.",
+                "description": first_line,
                 "attributes": [
-                    {"key": "specification", "display_name": "Specification", "value": "Standard Industrial Grade", "unit": None, "confidence": 0.90, "source_reference": "Document Text"}
+                    {"key": "raw_spec", "display_name": "Extracted Specification", "value": first_line, "unit": None, "confidence": 0.85, "source_reference": "Document Text"}
                 ]
             })
 
-        data = {
-            "products": products,
-            "suggestions": [
-                {
-                    "attribute_name": "Operating Temperature",
-                    "suggested_value": "-20°C to 80°C",
-                    "confidence": 0.91,
-                    "reason": "Standard operating temperature for industrial category.",
-                    "source_type": "industry_standard"
-                }
-            ]
-        }
-
         return {
-            "data": data,
-            "model": "local-intelligence-engine",
-            "provider": "local_fallback",
+            "data": {"products": products, "suggestions": []},
+            "model": "real-data-parser",
+            "provider": "direct_extraction",
             "input_tokens": len(user_content.split()),
-            "output_tokens": 150,
-        }
-
-        return {
-            "data": data,
-            "model": "local-intelligence-engine",
-            "provider": "local_fallback",
-            "input_tokens": len(user_content.split()),
-            "output_tokens": 150,
+            "output_tokens": 100,
         }
 
 
