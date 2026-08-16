@@ -87,6 +87,14 @@ async def init_db():
                 ("mobile_desc", "VARCHAR(128)"),
                 ("product_title", "VARCHAR(512)"),
                 ("long_description", "TEXT"),
+                ("bullet_features", "JSON DEFAULT '[]'"),
+            ]
+            for col_name, col_type in new_columns:
+                try:
+                    await conn.exec_driver_sql(f"ALTER TABLE products ADD COLUMN {col_name} {col_type};")
+                except Exception:
+                    pass  # Column already exists
+
         # Seed Default Organizations for Multi-Tenant Isolation
         try:
             await conn.exec_driver_sql("""
