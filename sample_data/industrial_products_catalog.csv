@@ -1,0 +1,6 @@
+sku,name,manufacturer,category,operating_pressure,flow_rate,power_rating,material,weight,voltage,ip_rating,operating_temp
+HP-4500,Industrial Hydraulic Pump HP-4500,FluidTech Industries,Hydraulic Equipment,250 bar,120 L/min,45 kW,Stainless Steel 316,18.5 kg,400 V,IP65,-20°C to 80°C
+PCV-200,Pressure Control Valve PCV-200,ValveMaster Corp,Control Valves,200 bar,45 L/min,1.5 kW,Forged Brass,4.2 kg,24 V DC,IP67,-10°C to 60°C
+VFD-750,Variable Frequency Drive VFD-750,ElectroDrive Systems,Electric Motors & Drives,N/A,N/A,75 kW,Aluminum / Polycarbonate,28 lbs,480 V AC,IP54,-10°C to 50°C
+CYL-80-500,Heavy Duty Hydraulic Cylinder CYL-80,HydroPneumatic Ltd,Hydraulic Equipment,3000 psi,80 L/min,N/A,Chrome-Plated Carbon Steel,62 kg,N/A,IP68,-30°C to 90°C
+BRG-6208-2RS,Deep Groove Ball Bearing 6208-2RS,Apex Bearings,Bearings & Seals,N/A,N/A,N/A,High-Carbon Chromium Steel,0.36 kg,N/A,Sealed (2RS),-30°C to 120°C

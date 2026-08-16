@@ -1,0 +1,41 @@
+{
+  "catalog_name": "FluidTech Q3 2026 Industrial Catalog",
+  "version": "2.4",
+  "products": [
+    {
+      "sku": "HP-4500-HD",
+      "name": "Heavy Duty Industrial Hydraulic Pump HP-4500",
+      "manufacturer": "FluidTech Industries",
+      "category": "Hydraulic Equipment",
+      "description": "High-pressure industrial hydraulic pump engineered for continuous 24/7 heavy manufacturing operation.",
+      "attributes": {
+        "operating_pressure": "250 bar",
+        "max_intermittent_pressure": "280 bar",
+        "flow_rate": "120 L/min",
+        "displacement": "65 cm3/rev",
+        "speed_range": "500 - 3000 RPM",
+        "power": "45 kW",
+        "material": "Stainless Steel 316",
+        "shaft_diameter": "32 mm",
+        "weight": "18.5 kg",
+        "mounting": "SAE-B 2-Bolt Flange"
+      }
+    },
+    {
+      "sku": "PCV-200-PROP",
+      "name": "Proportional Pressure Control Valve PCV-200",
+      "manufacturer": "ValveMaster Corp",
+      "category": "Control Valves",
+      "description": "Direct-operated proportional pressure relief valve with integrated digital electronics.",
+      "attributes": {
+        "max_operating_pressure": "200 bar",
+        "nominal_flow": "45 L/min",
+        "supply_voltage": "24 V DC",
+        "control_signal": "4-20 mA",
+        "connection_size": "G 1/2 BSPP",
+        "seal_material": "FKM (Viton)",
+        "weight": "4.2 kg"
+      }
+    }
+  ]
+}
