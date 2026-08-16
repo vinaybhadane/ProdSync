@@ -32,9 +32,9 @@ class UnifiedLLMService:
         self.provider = "gemini" if (GENAI_AVAILABLE and settings.GEMINI_API_KEY) else "local"
         self.gemini_client: Optional[Any] = None
         self.openai_client: Optional[Any] = None
-        self.gemini_model = settings.GEMINI_MODEL or "gemini-3.5-flash-lite"
-        self.gemini_key = settings.GEMINI_API_KEY
-        self.deployment = settings.AZURE_OPENAI_DEPLOYMENT or "gpt-4o"
+        self.gemini_model = getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash-lite") or "gemini-3.5-flash-lite"
+        self.gemini_key = getattr(settings, "GEMINI_API_KEY", "")
+        self.deployment = getattr(settings, "AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4o") or "gpt-4o"
 
         # Initialize Google Gemini Client
         if GENAI_AVAILABLE and self.gemini_key:
