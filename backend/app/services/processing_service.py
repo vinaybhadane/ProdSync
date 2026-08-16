@@ -68,6 +68,21 @@ class ImportService:
         catalog_id: Optional[str] = None,
     ) -> ProcessingJob:
         """Initializes a new ProcessingJob and enqueues to background pipeline."""
+        # Ensure organization exists in database
+        from app.db.models.user import Organization
+        org = await db.get(Organization, organization_id)
+        if not org:
+            slug = organization_id.lower().replace("_", "-").replace(" ", "-")
+            new_org = Organization(
+                id=organization_id,
+                name="Workspace Organization",
+                slug=slug,
+                plan="enterprise",
+                status="active",
+            )
+            db.add(new_org)
+            await db.flush()
+
         job = ProcessingJob(
             organization_id=organization_id,
             catalog_id=catalog_id,

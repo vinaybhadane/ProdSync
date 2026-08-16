@@ -82,17 +82,22 @@ app.add_exception_handler(ProdSyncException, prodsync_exception_handler)
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     request_id = getattr(request.state, "request_id", "req-unknown")
+    origin = request.headers.get("origin") or "*"
     logger.error(f"Unhandled error on {request.url.path}: {exc}", exc_info=True)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
             "error": {
                 "code": "INTERNAL_SERVER_ERROR",
-                "message": "An unexpected server error occurred. Please try again later.",
+                "message": f"Server error: {str(exc)}",
                 "request_id": request_id,
             }
         },
-        headers={"X-Request-ID": request_id},
+        headers={
+            "X-Request-ID": request_id,
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+        },
     )
 
 
