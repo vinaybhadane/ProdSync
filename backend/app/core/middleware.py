@@ -60,6 +60,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.request_history = defaultdict(list)
 
     async def dispatch(self, request: Request, call_next) -> Response:
+        # Always bypass OPTIONS preflight requests
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         # Skip rate limit on health checks and docs
         path = request.url.path
         if path.startswith("/health") or path.startswith("/docs") or path.startswith("/openapi.json"):

@@ -58,23 +58,22 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# 1. GZip Compression Middleware (Compresses JSON payloads > 1KB for faster transfer)
+# 1. Inner Middlewares
 app.add_middleware(GZipMiddleware, minimum_size=1000)
-
-# 2. CORS Middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["X-Request-ID", "X-Response-Time-Ms"],
-)
-
-# 3. Custom Security & Rate Limiting Middlewares
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RateLimitMiddleware, max_requests=settings.RATE_LIMIT_PER_MINUTE)
 app.add_middleware(RequestIDMiddleware)
+
+# 2. CORS Middleware (Outermost layer — intercepts and handles all OPTIONS preflights first)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_origin_regex=r"^https?://.*",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
 
 # 4. Custom Exception Handlers
 app.add_exception_handler(ProdSyncException, prodsync_exception_handler)
