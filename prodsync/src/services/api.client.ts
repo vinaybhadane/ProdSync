@@ -500,6 +500,33 @@ export const liveImportService = {
     };
   },
 
+  async scanImageOcr(file: File, saveToCatalog: boolean = true): Promise<{
+    filename: string;
+    ocrText: string;
+    ocrLines: string[];
+    lineCount: number;
+    products: any[];
+    jobId?: string;
+  }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('save_to_catalog', String(saveToCatalog));
+
+    const res = await apiFetch<any>('/imports/ocr-scan', {
+      method: 'POST',
+      body: formData,
+    });
+    const d = res.data || {};
+    return {
+      filename: d.filename || file.name,
+      ocrText: d.ocr_text || '',
+      ocrLines: d.ocr_lines || [],
+      lineCount: d.line_count || 0,
+      products: d.products || [],
+      jobId: d.job_id,
+    };
+  },
+
   async uploadUrl(url: string, catalogId?: string): Promise<ImportJob> {
     const res = await apiFetch<any>('/imports/url', {
       method: 'POST',

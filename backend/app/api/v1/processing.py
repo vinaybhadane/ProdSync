@@ -23,6 +23,8 @@ from app.schemas.processing import (
     ValidationResolveRequest,
 )
 from app.schemas.product import EnrichmentSuggestionSchema, ValidationIssueSchema
+from app.azure.document_intelligence import document_intelligence_service
+from app.azure.openai_client import openai_service
 from app.services.analytics_service import analytics_service
 from app.services.enrichment_service import enrichment_service
 from app.services.export_service import export_service
@@ -93,6 +95,71 @@ async def import_from_url(
         catalog_id=request.catalog_id,
     )
     return ApiResponse(data=ProcessingJobResponse.model_validate(job))
+
+
+@imports_router.post("/ocr-scan", response_model=ApiResponse)
+async def scan_image_ocr(
+    file: UploadFile = File(...),
+    save_to_catalog: bool = Form(True),
+    catalog_id: Optional[str] = Form(None),
+    current_user: CurrentUser = Depends(require_role(["owner", "admin", "manager"])),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Direct Image OCR & AI Structuring Endpoint.
+    Transcribes all visible text from product image/nameplate using Gemini Vision OCR
+    and structures normalized technical specifications into catalog.
+    """
+    data_bytes = await file.read()
+    ext = file.filename.split(".")[-1].lower() if "." in file.filename else "png"
+    
+    # 1. High-accuracy OCR
+    doc_data = await document_intelligence_service.analyze_document(data_bytes, ext)
+    ocr_text = doc_data.get("full_text", "")
+    lines = [l.strip() for l in ocr_text.splitlines() if l.strip()]
+
+    # 2. Gemini Multimodal Structured Intelligence
+    mime_map = {
+        "jpg": "image/jpeg",
+        "jpeg": "image/jpeg",
+        "png": "image/png",
+        "webp": "image/webp",
+        "bmp": "image/bmp",
+        "tiff": "image/tiff"
+    }
+    mime_type = mime_map.get(ext, "image/png")
+    
+    from app.ai.prompts.product_extraction import PRODUCT_EXTRACTION_SYSTEM_PROMPT
+    ai_result = await openai_service.generate_structured_json_from_image(
+        image_bytes=data_bytes,
+        mime_type=mime_type,
+        system_prompt=PRODUCT_EXTRACTION_SYSTEM_PROMPT,
+        user_content=f"OCR Transcribed Text:\n{ocr_text}"
+    )
+    raw_products = ai_result.get("data", {}).get("products", [])
+
+    # 3. If save_to_catalog, start real import pipeline
+    job = None
+    if save_to_catalog:
+        job = await import_service.start_import_job(
+            db=db,
+            organization_id=current_user.organization_id,
+            filename=file.filename,
+            file_type=ext,
+            raw_bytes=data_bytes,
+            catalog_id=catalog_id,
+        )
+
+    return ApiResponse(data={
+        "filename": file.filename,
+        "ocr_text": ocr_text,
+        "ocr_lines": lines,
+        "line_count": len(lines),
+        "products": raw_products,
+        "job_id": job.id if job else None,
+        "model": ai_result.get("model", "gemini-3.5-flash-lite"),
+        "provider": "google_gemini_vision",
+    })
 
 
 # ============================================================

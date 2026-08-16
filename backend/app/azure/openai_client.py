@@ -217,13 +217,75 @@ class UnifiedLLMService:
                 ]
             })
 
-        return {
-            "data": {"products": products, "suggestions": []},
-            "model": "real-data-parser",
-            "provider": "direct_extraction",
-            "input_tokens": len(user_content.split()),
-            "output_tokens": 100,
-        }
+    async def generate_structured_json_from_image(
+        self,
+        image_bytes: bytes,
+        mime_type: str,
+        system_prompt: str,
+        user_content: str = "",
+        temperature: float = 0.1,
+    ) -> Dict[str, Any]:
+        """
+        Multimodal visual OCR, entity detection, and technical attribute extraction directly from image bytes.
+        """
+        import asyncio
+        from google.genai import types as genai_types
+
+        quota_hit_messages = []
+
+        if self.gemini_client and self.gemini_key:
+            candidate_models = [
+                self.gemini_model,
+                "gemini-3.5-flash-lite",
+                "gemini-3.5-flash",
+                "gemini-flash-lite-latest",
+                "gemini-3.1-flash-lite",
+                "gemini-2.5-flash",
+            ]
+            full_prompt = (
+                f"{system_prompt}\n\n"
+                "CRITICAL: Output must be pure valid JSON ONLY without any markdown formatting.\n\n"
+                "TASK: Perform OCR on the uploaded product image, extract all visible text exactly as shown, "
+                "and structure all detected product specifications into the standardized JSON schema.\n"
+                f"DOCUMENT CONTEXT: {user_content}"
+            )
+
+            for model_candidate in candidate_models:
+                if not model_candidate:
+                    continue
+                try:
+                    logger.info(f"Invoking Gemini Vision '{model_candidate}' on image ({len(image_bytes)} bytes)...")
+                    response = await asyncio.to_thread(
+                        self.gemini_client.models.generate_content,
+                        model=model_candidate,
+                        contents=[
+                            genai_types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                            full_prompt
+                        ]
+                    )
+                    raw_text = response.text or "{}"
+                    data = repair_and_load_json(raw_text)
+                    if data and isinstance(data, dict) and len(data) > 0:
+                        logger.info(f"Gemini Vision '{model_candidate}' successfully extracted product from image.")
+                        return {
+                            "data": data,
+                            "model": model_candidate,
+                            "provider": "google_gemini_vision",
+                            "input_tokens": len(user_content.split()) + 258,
+                            "output_tokens": len(raw_text.split()),
+                        }
+                except Exception as e:
+                    err_str = str(e)
+                    if "RESOURCE_EXHAUSTED" in err_str or "429" in err_str or "quota" in err_str.lower():
+                        quota_hit_messages.append(f"{model_candidate}: rate limit")
+                    logger.warning(f"Gemini Vision '{model_candidate}' notice: {e}")
+                    continue
+
+        if quota_hit_messages:
+            raise APIQuotaExceededException("Google Gemini API rate limit or quota exceeded for Vision OCR.")
+
+        return self._extract_real_data_from_content(user_content)
 
 
 openai_service = UnifiedLLMService()
+
