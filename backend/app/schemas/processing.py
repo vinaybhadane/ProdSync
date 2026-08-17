@@ -36,6 +36,28 @@ class UrlImportRequest(BaseModel):
     catalog_id: Optional[str] = None
 
 
+class QuickEnrichRequest(BaseModel):
+    manufacturer: str
+    mpn: str
+    part_desc: Optional[str] = None
+    catalog_id: Optional[str] = None
+
+
+class BatchPreviewResponse(BaseModel):
+    filename: str
+    total_rows: int
+    headers: List[str]
+    sample_records: List[Dict[str, Any]]
+    suggested_mappings: Dict[str, str]
+
+
+class BatchProcessRequest(BaseModel):
+    filename: str
+    records: List[Dict[str, Any]]
+    column_mapping: Optional[Dict[str, str]] = None
+    catalog_id: Optional[str] = None
+
+
 # ============================================================
 # Processing Schemas
 # ============================================================

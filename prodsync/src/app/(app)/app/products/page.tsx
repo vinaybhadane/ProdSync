@@ -85,8 +85,19 @@ export default function ProductsPage() {
   const fetchProducts = useCallback(async (f: ProductFilter) => {
     setLoading(true);
     try {
-      const scoped = organizationService.getProducts(orgId);
-      if (scoped.length > 0) {
+      // 1. Fetch live products from backend database
+      const res = await productService.getProducts(f);
+      if (res && res.data && res.data.length > 0) {
+        setProducts(res.data);
+        setTotal(res.total);
+        
+        const cats = Array.from(new Set(res.data.map((p) => p.category).filter((c): c is string => Boolean(c))));
+        const mfrs = Array.from(new Set(res.data.map((p) => p.manufacturer).filter((m): m is string => Boolean(m))));
+        setCategories(cats);
+        setManufacturers(mfrs);
+      } else {
+        // Fallback to local organization scope if backend has not yet been populated
+        const scoped = organizationService.getProducts(orgId);
         let list = [...scoped];
         if (f.search) {
           const q = f.search.toLowerCase();
@@ -101,15 +112,6 @@ export default function ProductsPage() {
 
         const cats = Array.from(new Set(scoped.map((p) => p.category).filter((c): c is string => Boolean(c))));
         const mfrs = Array.from(new Set(scoped.map((p) => p.manufacturer).filter((m): m is string => Boolean(m))));
-        setCategories(cats);
-        setManufacturers(mfrs);
-      } else {
-        const res = await productService.getProducts(f);
-        setProducts(res.data);
-        setTotal(res.total);
-        
-        const cats = Array.from(new Set(res.data.map((p) => p.category).filter((c): c is string => Boolean(c))));
-        const mfrs = Array.from(new Set(res.data.map((p) => p.manufacturer).filter((m): m is string => Boolean(m))));
         setCategories(cats);
         setManufacturers(mfrs);
       }

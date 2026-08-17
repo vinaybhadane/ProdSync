@@ -122,12 +122,15 @@ export function mapBackendProduct(raw: any): Product {
       id: a.id,
       name: a.display_name || a.attribute_key || 'Attribute',
       value: a.value || '',
+      normalizedValue: a.normalized_value || undefined,
       unit: a.unit || undefined,
       status: a.status || 'ai_validated',
       confidence: Math.round(a.confidence ?? 90),
       source: a.source_name || 'Document Extraction',
       sourceType: a.source_type || 'pdf',
+      sourceUrl: a.source_url || (raw.sources?.find((s: any) => s.name === a.source_name)?.source_url) || undefined,
       aiReason: a.ai_reason || undefined,
+      evidenceSnippet: a.ai_reason || undefined,
       isAiGenerated: !!a.is_ai_generated,
       isEnriched: !!a.is_enriched,
       lastUpdated: a.updated_at || a.created_at || new Date().toISOString(),
@@ -491,12 +494,43 @@ export const liveProductService = {
     const url = `${API_BASE_URL}/exports/products${query}`;
     window.open(url, '_blank');
   },
+
+  async exportUnilogDelivery(format: 'csv' | 'xlsx' | 'json' = 'csv', productIds?: string[]): Promise<void> {
+    const idsQuery = productIds && productIds.length ? `&product_ids=${productIds.join('&product_ids=')}` : '';
+    const url = `${API_BASE_URL}/exports/unilog-delivery-format?format=${format}${idsQuery}`;
+    window.open(url, '_blank');
+  },
 };
 
 // -------------------------------------------------------------
 // Live Import & File Extraction Service
 // -------------------------------------------------------------
 export const liveImportService = {
+  async quickEnrich(data: { manufacturer: string; mpn: string; part_desc?: string; catalog_id?: string }): Promise<Product> {
+    const res = await apiFetch<any>('/imports/quick-enrich', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!res.data) throw new Error('Quick enrichment failed to return product.');
+    return mapBackendProduct(res.data);
+  },
+
+  async previewBatch(file: File): Promise<{
+    filename: string;
+    total_rows: number;
+    headers: string[];
+    sample_records: any[];
+    suggested_mappings: Record<string, string>;
+  }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await apiFetch<any>('/imports/batch-preview', {
+      method: 'POST',
+      body: formData,
+    });
+    return res.data;
+  },
+
   async uploadFile(file: File, catalogId?: string): Promise<ImportJob> {
     const formData = new FormData();
     formData.append('file', file);

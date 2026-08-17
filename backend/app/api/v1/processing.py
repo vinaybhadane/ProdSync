@@ -17,14 +17,18 @@ from app.schemas.import_job import (
 )
 from app.schemas.processing import (
     AnalyticsOverviewResponse,
+    BatchPreviewResponse,
+    BatchProcessRequest,
     EnrichmentActionRequest,
     NotificationResponse,
     ProcessingJobResponse,
+    QuickEnrichRequest,
     ValidationResolveRequest,
 )
-from app.schemas.product import EnrichmentSuggestionSchema, ValidationIssueSchema
+from app.schemas.product import EnrichmentSuggestionSchema, ProductResponse, ValidationIssueSchema
 from app.azure.document_intelligence import document_intelligence_service
 from app.azure.openai_client import openai_service
+from app.core.cache import cache
 from app.services.analytics_service import analytics_service
 from app.services.enrichment_service import enrichment_service
 from app.services.export_service import export_service
@@ -46,6 +50,81 @@ health_router = APIRouter(prefix="/health", tags=["Health"])
 # ============================================================
 # Imports Endpoints
 # ============================================================
+@imports_router.post("/quick-enrich", response_model=ApiResponse[ProductResponse])
+async def quick_enrich_product(
+    request: QuickEnrichRequest,
+    current_user: CurrentUser = Depends(require_role(["owner", "admin", "manager", "reviewer", "member"])),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    UniHack 2026 Minimal Input Quick Enrichment Endpoint.
+    Receives: Manufacturer Name + MPN (+ optional part description)
+    Executes live pipeline:
+      - Authoritative Sourcing (Manufacturer prioritized, Marketplaces prohibited)
+      - Leaf-Level Taxonomy Classification (Taxonomy ID, Classpath)
+      - Category-Specific Attribute Extraction with Value + UOM separation
+      - LOV Validation & NEW_VALUE discovery
+      - 5-Tier Standardized Descriptions + separate marketing content preservation
+      - Field-Level Provenance attachment
+    """
+    product, attrs, issues = await processing_service.enrich_single_product_record(
+        db=db,
+        organization_id=current_user.organization_id,
+        manufacturer=request.manufacturer,
+        mpn=request.mpn,
+        part_desc=request.part_desc,
+        catalog_id=request.catalog_id,
+        source_filename=f"{request.manufacturer}_{request.mpn}_Lookup",
+    )
+    await db.commit()
+    await cache.invalidate_tags(["products", "analytics", "catalogs"])
+    
+    # Reload with attributes and sources for complete response
+    from app.services.product_service import product_service
+    loaded_product = await product_service.get_product(
+        db=db, organization_id=current_user.organization_id, product_id=product.id
+    )
+    return ApiResponse(data=ProductResponse.model_validate(loaded_product))
+
+
+@imports_router.post("/batch-preview", response_model=ApiResponse[BatchPreviewResponse])
+async def preview_batch_file(
+    file: UploadFile = File(...),
+    current_user: CurrentUser = Depends(require_role(["owner", "admin", "manager"])),
+):
+    """
+    Parses uploaded batch CSV / XLSX / JSON file, detects columns, and returns sample rows
+    with suggested column mappings for MPN, Manufacturer, and Description.
+    """
+    data_bytes = await file.read()
+    ext = file.filename.split(".")[-1].lower() if "." in file.filename else "csv"
+    doc_data = await document_intelligence_service.analyze_document(data_bytes, ext)
+    records = doc_data.get("records", [])
+
+    headers = []
+    if records:
+        headers = list(records[0].keys())
+
+    # Intelligent column mapping suggestions
+    suggested_mappings = {}
+    for h in headers:
+        hl = h.lower()
+        if hl in ["mfg_part_num", "mpn", "part_number", "sku", "item_id", "partnumber"] and "mpn" not in suggested_mappings:
+            suggested_mappings["mpn"] = h
+        elif hl in ["part_manuf", "manufacturer", "brand", "unilog_brand", "e1_brand", "mfg"] and "manufacturer" not in suggested_mappings:
+            suggested_mappings["manufacturer"] = h
+        elif hl in ["part_desc", "description", "product_name", "name", "title"] and "description" not in suggested_mappings:
+            suggested_mappings["description"] = h
+
+    return ApiResponse(data=BatchPreviewResponse(
+        filename=file.filename,
+        total_rows=len(records),
+        headers=headers,
+        sample_records=records[:5],
+        suggested_mappings=suggested_mappings,
+    ))
+
+
 @imports_router.post("/upload-url", response_model=ApiResponse[UploadUrlResponse])
 async def get_direct_upload_url(
     request: UploadUrlRequest,
@@ -476,45 +555,30 @@ async def export_products_file(
 
 @exports_router.get("/unilog-delivery-format")
 async def export_unilog_delivery_format(
+    format: str = Query("csv", pattern="^(csv|xlsx|json)$"),
+    product_ids: Optional[List[str]] = Query(None),
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Exports products formatted strictly with the 252 static headers
     matching 'Unihack_ Expected Output - Delivery Format.csv'.
+    Supports CSV, XLSX, and JSON output formats.
     """
-    from app.ai.normalization.unilog_delivery_exporter import unilog_delivery_exporter
-    from sqlalchemy import select
-    from app.db.models.product import Product
-
-    stmt = select(Product).where(
-        Product.organization_id == current_user.organization_id,
-        Product.is_deleted == False,
+    content = await export_service.export_unilog_delivery(
+        db, current_user.organization_id, product_ids=product_ids, format_type=format
     )
-    result = await db.execute(stmt)
-    products = result.scalars().all()
 
-    raw_rows = []
-    for p in products:
-        raw_rows.append({
-            "Mfg_Part_Num": p.manufacturer_part_number or p.sku,
-            "sku": p.sku,
-            "Part_Desc": p.name,
-            "name": p.name,
-            "brand": p.brand,
-            "Unilog_Brand": p.brand,
-            "Part_Manuf": p.manufacturer,
-            "manufacturer": p.manufacturer,
-            "Dept": (p.classpath or "").split(">")[0].strip() if p.classpath else "Industrial Supplies",
-            "Class": (p.classpath or "").split(">")[1].strip() if p.classpath and len(p.classpath.split(">")) > 1 else p.category,
-            "Fine": (p.classpath or "").split(">")[2].strip() if p.classpath and len(p.classpath.split(">")) > 2 else p.category,
-        })
-
-    csv_content = unilog_delivery_exporter.generate_delivery_csv(raw_rows)
+    media_types = {
+        "csv": "text/csv",
+        "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "json": "application/json",
+    }
+    ext = format.lower()
     return Response(
-        content=csv_content.encode("utf-8"),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=Unihack_Expected_Output_Delivery_Format.csv"}
+        content=content,
+        media_type=media_types.get(ext, "text/csv"),
+        headers={"Content-Disposition": f"attachment; filename=Unihack_Expected_Output_Delivery_Format.{ext}"}
     )
 
 

@@ -2,10 +2,20 @@
 // ProdSync — Core TypeScript Types
 // ============================================================
 
-export type ValidationStatus = 'verified' | 'ai_validated' | 'ai_suggested' | 'needs_review' | 'invalid' | 'missing';
+export type ValidationStatus =
+  | 'verified'
+  | 'ai_validated'
+  | 'ai_suggested'
+  | 'needs_review'
+  | 'invalid'
+  | 'missing'
+  | 'new_value'
+  | 'conflict'
+  | 'low_confidence'
+  | 'unverified';
 export type ProcessingStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'ready_for_review';
 export type IssueSeverity = 'critical' | 'warning' | 'info';
-export type SourceType = 'pdf' | 'csv' | 'xlsx' | 'url' | 'manual' | 'datasheet' | 'catalog' | 'image';
+export type SourceType = 'pdf' | 'csv' | 'xlsx' | 'url' | 'manual' | 'datasheet' | 'catalog' | 'image' | 'manufacturer' | 'distributor' | 'technical_datasheet';
 
 export interface User {
   id: string;
@@ -84,12 +94,15 @@ export interface ProductAttribute {
   id: string;
   name: string;
   value: string;
+  normalizedValue?: string;
   unit?: string;
   status: ValidationStatus;
   confidence: number;
   source?: string;
   sourceType?: SourceType;
+  sourceUrl?: string;
   aiReason?: string;
+  evidenceSnippet?: string;
   isAiGenerated?: boolean;
   isEnriched?: boolean;
   lastUpdated: string;

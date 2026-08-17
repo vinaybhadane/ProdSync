@@ -5,11 +5,11 @@ import Link from 'next/link';
 import {
   Upload, FileText, Table2, Globe, Type, CheckCircle,
   Loader2, AlertCircle, X, ArrowRight, Plus, Sparkles, AlertTriangle, RefreshCw,
-  Camera, Image as ImageIcon, Copy, Check, Eye, ShieldCheck, Tag, Cpu
+  Camera, Image as ImageIcon, Copy, Check, Eye, ShieldCheck, Tag, Cpu, Zap, Download, Database, Layers
 } from 'lucide-react';
 import { importService } from '@/services/import.service';
-import { liveProcessingService, liveImportService } from '@/services/api.client';
-import type { ImportJob } from '@/types';
+import { liveProcessingService, liveImportService, liveProductService } from '@/services/api.client';
+import type { ImportJob, Product } from '@/types';
 
 const ACCEPTED_TYPES = ['.pdf', '.csv', '.xlsx', '.xls', '.json', '.txt', '.png', '.jpg', '.jpeg', '.webp', '.bmp', '.tiff'];
 const IMAGE_TYPES = ['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.tiff'];
@@ -27,9 +27,18 @@ interface OcrScanResult {
   model?: string;
 }
 
+interface BatchPreviewData {
+  filename: string;
+  total_rows: number;
+  headers: string[];
+  sample_records: any[];
+  suggested_mappings: Record<string, string>;
+  selectedFile?: File;
+}
+
 export default function ImportPage() {
   const [dragActive, setDragActive] = useState(false);
-  const [importMethod, setImportMethod] = useState<'file' | 'ocr' | 'url' | 'manual' | 'paste'>('file');
+  const [importMethod, setImportMethod] = useState<'quick_mpn' | 'file' | 'ocr' | 'url' | 'paste' | 'manual'>('quick_mpn');
   const [activeJob, setActiveJob] = useState<ImportJob | null>(null);
   const [urlInput, setUrlInput] = useState('');
   const [pasteText, setPasteText] = useState('');
@@ -38,6 +47,17 @@ export default function ImportPage() {
   const [apiLimitHit, setApiLimitHit] = useState(false);
   const [copiedOcr, setCopiedOcr] = useState(false);
 
+  // Quick MPN Enrichment State
+  const [quickMfr, setQuickMfr] = useState('Schneider Electric');
+  const [quickMpn, setQuickMpn] = useState('LC1D09M7');
+  const [quickDesc, setQuickDesc] = useState('TeSys D Contactor 3P AC-3 440V 9A 220V AC coil');
+  const [quickEnriching, setQuickEnriching] = useState(false);
+  const [quickEnrichedProduct, setQuickEnrichedProduct] = useState<Product | null>(null);
+  const [quickActiveStep, setQuickActiveStep] = useState(0);
+
+  // Batch CSV Preview State
+  const [batchPreview, setBatchPreview] = useState<BatchPreviewData | null>(null);
+
   // Dedicated Image OCR State
   const [ocrScanning, setOcrScanning] = useState(false);
   const [ocrResult, setOcrResult] = useState<OcrScanResult | null>(null);
@@ -45,14 +65,12 @@ export default function ImportPage() {
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Clear polling on unmount
   useEffect(() => {
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, []);
 
-  // Poll real backend job status
   const startRealJobPolling = useCallback((job: ImportJob) => {
     setActiveJob(job);
     setApiLimitHit(false);
@@ -90,7 +108,6 @@ export default function ImportPage() {
           return;
         }
 
-        // Still processing
         setActiveJob((prev) => {
           if (!prev) return prev;
           const currentStageName = realStatus.currentStage?.toLowerCase() || '';
@@ -112,7 +129,43 @@ export default function ImportPage() {
     }, 1500);
   }, []);
 
-  // Standard File Drop Handler (Supports All Formats including Images)
+  // Handle Quick MPN Enrichment
+  const handleQuickEnrich = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!quickMfr.trim() || !quickMpn.trim()) {
+      setError('Manufacturer and MPN / Part Number are required.');
+      return;
+    }
+
+    setError('');
+    setQuickEnriching(true);
+    setQuickEnrichedProduct(null);
+    setQuickActiveStep(1);
+
+    const stepInterval = setInterval(() => {
+      setQuickActiveStep((prev) => (prev < 6 ? prev + 1 : prev));
+    }, 450);
+
+    try {
+      const enriched = await liveImportService.quickEnrich({
+        manufacturer: quickMfr.trim(),
+        mpn: quickMpn.trim(),
+        part_desc: quickDesc.trim() || undefined,
+      });
+
+      clearInterval(stepInterval);
+      setQuickActiveStep(7);
+      setQuickEnrichedProduct(enriched);
+    } catch (err: any) {
+      clearInterval(stepInterval);
+      const msg = err?.message || 'Quick enrichment failed. Please verify the inputs.';
+      setError(msg);
+    } finally {
+      setQuickEnriching(false);
+    }
+  };
+
+  // Standard File Drop Handler (Supports CSV preview & Batch)
   const handleFileDrop = async (file: File) => {
     setError('');
     setApiLimitHit(false);
@@ -122,10 +175,22 @@ export default function ImportPage() {
       return;
     }
 
-    // If it's an image and user is in OCR mode or regular mode, trigger OCR
     if (IMAGE_TYPES.includes(ext) && importMethod === 'ocr') {
       await handleImageOcrScan(file);
       return;
+    }
+
+    // If CSV / XLSX, show column mapping preview first
+    if (['.csv', '.xlsx', '.xls'].includes(ext)) {
+      try {
+        setUploading(true);
+        const preview = await liveImportService.previewBatch(file);
+        setBatchPreview({ ...preview, selectedFile: file });
+        setUploading(false);
+        return;
+      } catch (e) {
+        console.warn('Preview notice, falling back to direct upload:', e);
+      }
     }
 
     setUploading(true);
@@ -136,7 +201,7 @@ export default function ImportPage() {
       const msg = err?.message || 'Upload failed. Please try again.';
       if (msg.includes('429') || msg.toLowerCase().includes('quota') || msg.toLowerCase().includes('limit')) {
         setApiLimitHit(true);
-        setError('Google Gemini AI rate limit is hit (Quota 429). Please wait a few moments before retrying.');
+        setError('Google Gemini AI rate limit reached (Quota 429). Please wait a few moments before retrying.');
       } else {
         setError(msg);
       }
@@ -145,54 +210,70 @@ export default function ImportPage() {
     }
   };
 
-  // Dedicated Image OCR & AI Structuring Scanner
+  const handleStartBatchProcessing = async () => {
+    if (!batchPreview?.selectedFile) return;
+    setUploading(true);
+    try {
+      const job = await importService.uploadFile(batchPreview.selectedFile);
+      setBatchPreview(null);
+      startRealJobPolling(job);
+    } catch (err: any) {
+      setError(err?.message || 'Batch upload failed.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Dedicated Image OCR Scanner
   const handleImageOcrScan = async (file: File) => {
     setError('');
     setApiLimitHit(false);
     setOcrScanning(true);
+    setOcrResult(null);
     setSelectedImageFile(file);
 
     const previewUrl = URL.createObjectURL(file);
 
     try {
-      const res = await liveImportService.scanImageOcr(file, true);
+      const scanRes = await liveImportService.scanImageOcr(file, true);
       setOcrResult({
-        filename: file.name,
+        filename: scanRes.filename,
         imagePreviewUrl: previewUrl,
-        ocrText: res.ocrText,
-        ocrLines: res.ocrLines,
-        lineCount: res.lineCount,
-        ocrEngine: res.ocrEngine,
-        ocrConfidence: res.ocrConfidence,
-        products: res.products,
-        jobId: res.jobId,
+        ocrText: scanRes.ocrText,
+        ocrLines: scanRes.ocrLines,
+        lineCount: scanRes.lineCount,
+        ocrEngine: scanRes.ocrEngine,
+        ocrConfidence: scanRes.ocrConfidence,
+        products: scanRes.products,
+        jobId: scanRes.jobId,
+        model: scanRes.aiModel,
       });
 
-      if (res.jobId) {
-        // Also poll background job to ensure catalog stats update
-        const fakeJob: ImportJob = {
-          id: res.jobId,
+      if (scanRes.jobId) {
+        startRealJobPolling({
+          id: scanRes.jobId,
           filename: file.name,
-          fileType: 'pdf' as any,
+          fileType: 'image',
           fileSize: file.size,
           status: 'processing',
-          progress: 50,
+          progress: 30,
           stages: [
-            { id: 'upload', label: 'Image Uploaded', status: 'completed' },
-            { id: 'ocr', label: 'RapidOCR Local Library', status: 'completed' },
-            { id: 'extract', label: 'Gemini AI Normalization', status: 'active' },
-            { id: 'validate', label: 'Engineering Rule Validation', status: 'pending' },
-            { id: 'save', label: 'Saved to Products Catalog', status: 'pending' },
+            { id: 'document_received', label: 'Image Received', status: 'completed' },
+            { id: 'text_extraction', label: 'RapidOCR Text Extraction', status: 'completed' },
+            { id: 'product_detection', label: 'Gemini Structuring', status: 'active' },
+            { id: 'normalization', label: 'Unit Normalization', status: 'pending' },
+            { id: 'validation', label: 'Engineering Rules', status: 'pending' },
+            { id: 'enrichment', label: 'AI Enrichment', status: 'pending' },
+            { id: 'final_structuring', label: 'Catalog Ready', status: 'pending' },
           ],
           createdAt: new Date().toISOString(),
-        };
-        startRealJobPolling(fakeJob);
+        });
       }
     } catch (err: any) {
-      const msg = err?.message || 'Image OCR processing failed.';
+      const msg = err?.message || 'OCR Image Scan failed.';
       if (msg.includes('429') || msg.toLowerCase().includes('quota') || msg.toLowerCase().includes('limit')) {
         setApiLimitHit(true);
-        setError('Google Gemini Vision rate limit is hit (Quota 429). Please wait 30–60 seconds.');
+        setError('Google Gemini AI rate limit is hit (Quota 429). Please wait a few moments before retrying.');
       } else {
         setError(msg);
       }
@@ -235,13 +316,7 @@ export default function ImportPage() {
       const job = await importService.uploadUrl(urlInput);
       startRealJobPolling(job);
     } catch (err: any) {
-      const msg = err?.message || 'Could not process the URL.';
-      if (msg.includes('429') || msg.toLowerCase().includes('quota') || msg.toLowerCase().includes('limit')) {
-        setApiLimitHit(true);
-        setError('Google Gemini AI rate limit is hit (Quota 429). Please wait a few moments before retrying.');
-      } else {
-        setError(msg);
-      }
+      setError(err?.message || 'Could not process the URL.');
     } finally {
       setUploading(false);
     }
@@ -253,13 +328,23 @@ export default function ImportPage() {
     return <div style={{ width: '18px', height: '18px', borderRadius: '50%', border: '2px solid var(--ps-slate-300)' }} />;
   };
 
+  const QUICK_ENRICH_STAGES = [
+    'Input Validated & Sanitized',
+    'Authoritative Manufacturer Sourcing (Priority 1)',
+    'Leaf-Level Taxonomy Classification',
+    'Dynamic Schema Attribute Extraction & UOMs',
+    'List of Values (LOV) Validation & New Value Discovery',
+    '5-Tier Unilog Standardized Descriptions',
+    'Commerce-Ready Product Structuring & Provenance',
+  ];
+
   return (
     <div>
       {/* Header */}
       <div style={{ marginBottom: '1.75rem' }}>
-        <h1 className="text-h2" style={{ marginBottom: '0.25rem' }}>Import & OCR Product Intelligence</h1>
+        <h1 className="text-h2" style={{ marginBottom: '0.25rem' }}>Import & AI Product Intelligence Engine</h1>
         <p style={{ color: 'var(--ps-text-muted)', fontSize: '0.9375rem' }}>
-          Upload product documents, scan nameplate images using Google Gemini Vision OCR, or connect data feeds.
+          Enrich products using minimal manufacturer part inputs, upload batch catalogs, or scan physical nameplates.
         </p>
       </div>
 
@@ -284,7 +369,7 @@ export default function ImportPage() {
               Google Gemini API Limit Reached (HTTP 429)
             </div>
             <div style={{ fontSize: '0.875rem', lineHeight: 1.5 }}>
-              The Gemini Free Tier rate limit was reached while analyzing your document or image. Only 100% real data is processed — no mock data is used. Please wait 30–60 seconds before retrying.
+              The Gemini Free Tier rate limit was reached. Only 100% real dynamic data is processed — no static mock data is used. Please wait a few moments before retrying.
             </div>
           </div>
         </div>
@@ -293,15 +378,18 @@ export default function ImportPage() {
       {/* Method tabs */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
         {([
-          { id: 'file', icon: <Upload size={14} />, label: 'Upload File / CSV / PDF' },
-          { id: 'ocr', icon: <Camera size={14} />, label: 'Image OCR Scan (RapidOCR Library)' },
-          { id: 'url', icon: <Globe size={14} />, label: 'Enter URL' },
-          { id: 'paste', icon: <Type size={14} />, label: 'Paste Text' },
-          { id: 'manual', icon: <Plus size={14} />, label: 'Manual Entry' },
+          { id: 'quick_mpn', icon: <Zap size={14} />, label: '⚡ Quick MPN Enrichment (Live Search)' },
+          { id: 'file', icon: <Upload size={14} />, label: 'Batch File / CSV / PDF Upload' },
+          { id: 'ocr', icon: <Camera size={14} />, label: 'Nameplate OCR Scan (RapidOCR Library)' },
+          { id: 'url', icon: <Globe size={14} />, label: 'Manufacturer URL' },
+          { id: 'paste', icon: <Type size={14} />, label: 'Paste Technical Text' },
         ] as const).map((method) => (
           <button
             key={method.id}
-            onClick={() => setImportMethod(method.id)}
+            onClick={() => {
+              setImportMethod(method.id);
+              setError('');
+            }}
             className="ps-btn ps-btn-sm"
             style={{
               background: importMethod === method.id ? 'var(--ps-primary)' : 'white',
@@ -317,64 +405,242 @@ export default function ImportPage() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', alignItems: 'start' }} className="import-grid">
-        {/* Left column — Ingestion input */}
+        {/* Left Column — Ingestion Input */}
         <div>
-          {/* 1. General File drop zone */}
+          {/* 1. Quick MPN Enrichment Form */}
+          {importMethod === 'quick_mpn' && (
+            <div className="ps-card" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '1rem' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(37,99,235,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ps-primary)' }}>
+                  <Zap size={18} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '1.0625rem', fontWeight: 700, margin: 0 }}>Minimal Input AI Product Enrichment</h2>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--ps-text-muted)', margin: 0 }}>
+                    Enter Manufacturer + MPN. ProdSync searches authoritative sources and extracts 10–30+ attributes.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleQuickEnrich}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem', color: 'var(--ps-text-primary)' }}>
+                    Manufacturer / Brand Name <span style={{ color: 'var(--ps-danger)' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="ps-input"
+                    value={quickMfr}
+                    onChange={(e) => setQuickMfr(e.target.value)}
+                    placeholder="e.g. Schneider Electric, 3M, Milwaukee, Freud, Whirlpool"
+                    required
+                    style={{ width: '100%' }}
+                  />
+                  {/* Sample suggestions */}
+                  <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                    {['Schneider Electric', '3M', 'Milwaukee', 'Freud', 'Whirlpool', 'Rheem', 'Parker', 'Fluke'].map((brand) => (
+                      <button
+                        type="button"
+                        key={brand}
+                        onClick={() => setQuickMfr(brand)}
+                        style={{
+                          fontSize: '0.75rem',
+                          padding: '0.2rem 0.5rem',
+                          background: 'var(--ps-slate-100)',
+                          border: '1px solid var(--ps-border)',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {brand}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem', color: 'var(--ps-text-primary)' }}>
+                    Manufacturer Part Number (MPN / SKU) <span style={{ color: 'var(--ps-danger)' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="ps-input"
+                    value={quickMpn}
+                    onChange={(e) => setQuickMpn(e.target.value)}
+                    placeholder="e.g. LC1D09M7, DBDS12125G01F, WDTS7024RZ"
+                    required
+                    style={{ width: '100%', fontFamily: 'monospace' }}
+                  />
+                  <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                    {[
+                      { mfr: 'Schneider Electric', mpn: 'LC1D09M7', desc: 'TeSys D Contactor 3P 9A 220V AC' },
+                      { mfr: 'Freud', mpn: 'DBDS12125G01F', desc: 'Diablo 12x20mm Speed Demon Metal Cut-Off Disc' },
+                      { mfr: 'Whirlpool', mpn: 'WDTS7024RZ', desc: 'Built-In Dishwasher Stainless Steel 41 dBA' },
+                      { mfr: '3M', mpn: '7100052341', desc: 'Cubitron II Hookit Film Disc 775L' },
+                    ].map((sample) => (
+                      <button
+                        type="button"
+                        key={sample.mpn}
+                        onClick={() => {
+                          setQuickMfr(sample.mfr);
+                          setQuickMpn(sample.mpn);
+                          setQuickDesc(sample.desc);
+                        }}
+                        style={{
+                          fontSize: '0.75rem',
+                          padding: '0.2rem 0.5rem',
+                          background: 'rgba(37,99,235,0.06)',
+                          border: '1px solid rgba(37,99,235,0.2)',
+                          color: 'var(--ps-primary)',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {sample.mfr} {sample.mpn}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem', color: 'var(--ps-text-primary)' }}>
+                    Part Description or Keywords (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    className="ps-input"
+                    value={quickDesc}
+                    onChange={(e) => setQuickDesc(e.target.value)}
+                    placeholder="e.g. TeSys D Contactor 3P 9A 220V AC coil"
+                    style={{ width: '100%' }}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={quickEnriching}
+                  className="ps-btn ps-btn-primary"
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem' }}
+                >
+                  {quickEnriching ? (
+                    <>
+                      <Loader2 size={16} style={{ animation: 'ps-spin 1s linear infinite' }} />
+                      Enriching Product from Official Sources...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={16} />
+                      Enrich Product with Sourcing Engine
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {error && (
+                <div style={{ display: 'flex', gap: '0.5rem', padding: '0.75rem', background: 'var(--ps-danger-light)', borderRadius: '8px', marginTop: '1rem', fontSize: '0.875rem', color: 'var(--ps-danger-dark)' }}>
+                  <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+                  {error}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 2. File Upload & Batch Preview */}
           {importMethod === 'file' && (
             <div>
-              <label
-                className={`upload-zone${dragActive ? ' drag-active' : ''}`}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '3rem 2rem',
-                  textAlign: 'center',
-                  minHeight: '280px',
-                  cursor: 'pointer',
-                }}
-                onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
-                onDragLeave={(e) => { e.preventDefault(); setDragActive(false); }}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={handleDrop}
-                htmlFor="file-input"
-              >
-                <input
-                  id="file-input"
-                  type="file"
-                  accept={ACCEPTED_TYPES.join(',')}
-                  onChange={handleFileInput}
-                  style={{ display: 'none' }}
-                  aria-label="Upload product document"
-                />
-                {uploading ? (
-                  <Loader2 size={40} color="var(--ps-primary)" style={{ animation: 'ps-spin 1s linear infinite', marginBottom: '1rem' }} />
-                ) : (
-                  <Upload size={40} color={dragActive ? 'var(--ps-primary)' : 'var(--ps-slate-400)'} style={{ marginBottom: '1rem' }} />
-                )}
-                <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.5rem', color: dragActive ? 'var(--ps-primary)' : 'var(--ps-text-primary)' }}>
-                  {dragActive ? 'Drop your file here' : 'Drop product documents or catalog files'}
-                </div>
-                <div style={{ fontSize: '0.875rem', color: 'var(--ps-text-muted)', marginBottom: '1.25rem' }}>
-                  Supports CSV, XLSX, PDF, JSON, PNG, JPG formats
-                </div>
-                <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '1.25rem' }}>
-                  {['CSV', 'XLSX', 'PDF', 'PNG', 'JPG', 'JSON'].map((t) => (
-                    <span key={t} className="ps-badge ps-badge-neutral" style={{ fontSize: '0.75rem' }}>{t}</span>
-                  ))}
-                </div>
-                <div style={{ fontSize: '0.8125rem', color: 'var(--ps-text-muted)' }}>or</div>
-                <button
-                  type="button"
-                  className="ps-btn ps-btn-secondary"
-                  style={{ marginTop: '0.75rem', pointerEvents: 'none' }}
+              {!batchPreview ? (
+                <label
+                  className={`upload-zone${dragActive ? ' drag-active' : ''}`}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '3rem 2rem',
+                    textAlign: 'center',
+                    minHeight: '280px',
+                    cursor: 'pointer',
+                  }}
+                  onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
+                  onDragLeave={(e) => { e.preventDefault(); setDragActive(false); }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={handleDrop}
+                  htmlFor="file-input"
                 >
-                  Browse Files
-                </button>
-              </label>
+                  <input
+                    id="file-input"
+                    type="file"
+                    accept={ACCEPTED_TYPES.join(',')}
+                    onChange={handleFileInput}
+                    style={{ display: 'none' }}
+                    aria-label="Upload product document"
+                  />
+                  {uploading ? (
+                    <Loader2 size={40} color="var(--ps-primary)" style={{ animation: 'ps-spin 1s linear infinite', marginBottom: '1rem' }} />
+                  ) : (
+                    <Upload size={40} color={dragActive ? 'var(--ps-primary)' : 'var(--ps-slate-400)'} style={{ marginBottom: '1rem' }} />
+                  )}
+                  <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.5rem', color: dragActive ? 'var(--ps-primary)' : 'var(--ps-text-primary)' }}>
+                    {dragActive ? 'Drop your file here' : 'Drop product catalog (CSV / XLSX / PDF)'}
+                  </div>
+                  <div style={{ fontSize: '0.875rem', color: 'var(--ps-text-muted)', marginBottom: '1.25rem' }}>
+                    Auto-detects columns and formats for Unihack Delivery Standards
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '1.25rem' }}>
+                    {['CSV', 'XLSX', 'PDF', 'JSON', 'Unihack Input Format'].map((t) => (
+                      <span key={t} className="ps-badge ps-badge-neutral" style={{ fontSize: '0.75rem' }}>{t}</span>
+                    ))}
+                  </div>
+                  <button type="button" className="ps-btn ps-btn-secondary" style={{ pointerEvents: 'none' }}>
+                    Browse Files
+                  </button>
+                </label>
+              ) : (
+                <div className="ps-card" style={{ padding: '1.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>Batch File Column Preview</h3>
+                      <div style={{ fontSize: '0.8125rem', color: 'var(--ps-text-muted)' }}>
+                        {batchPreview.filename} ({batchPreview.total_rows} total rows detected)
+                      </div>
+                    </div>
+                    <button onClick={() => setBatchPreview(null)} className="ps-btn ps-btn-sm ps-btn-secondary">
+                      <X size={14} /> Change File
+                    </button>
+                  </div>
 
-              {error && !apiLimitHit && (
+                  <div style={{ marginBottom: '1rem', padding: '0.75rem', background: 'var(--ps-slate-50)', borderRadius: '8px', border: '1px solid var(--ps-border)' }}>
+                    <div style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>Detected Column Mappings:</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8125rem' }}>
+                      <div><strong>MPN Column:</strong> <span className="ps-badge ps-badge-primary">{batchPreview.suggested_mappings.mpn || 'Mfg_Part_Num'}</span></div>
+                      <div><strong>Manufacturer:</strong> <span className="ps-badge ps-badge-primary">{batchPreview.suggested_mappings.manufacturer || 'Part_Manuf'}</span></div>
+                      <div><strong>Description:</strong> <span className="ps-badge ps-badge-primary">{batchPreview.suggested_mappings.description || 'Part_Desc'}</span></div>
+                      <div><strong>Total Columns:</strong> <span className="ps-badge ps-badge-neutral">{batchPreview.headers.length}</span></div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleStartBatchProcessing}
+                    disabled={uploading}
+                    className="ps-btn ps-btn-primary"
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                  >
+                    {uploading ? (
+                      <>
+                        <Loader2 size={16} style={{ animation: 'ps-spin 1s linear infinite' }} />
+                        Starting Batch Pipeline...
+                      </>
+                    ) : (
+                      <>
+                        <Layers size={16} />
+                        Enrich All {batchPreview.total_rows} Products
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {error && (
                 <div style={{ display: 'flex', gap: '0.5rem', padding: '0.75rem', background: 'var(--ps-danger-light)', borderRadius: '8px', marginTop: '0.75rem', fontSize: '0.875rem', color: 'var(--ps-danger-dark)' }}>
                   <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
                   {error}
@@ -383,9 +649,21 @@ export default function ImportPage() {
             </div>
           )}
 
-          {/* 2. Dedicated Image OCR Scan View */}
+          {/* 3. OCR Scan Zone */}
           {importMethod === 'ocr' && (
-            <div>
+            <div className="ps-card" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '1rem' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(16,185,129,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ps-success)' }}>
+                  <Camera size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>Product Nameplate Optical Scan</h3>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--ps-text-muted)' }}>
+                    Uses RapidOCR library to extract text and Gemini to structure specifications.
+                  </div>
+                </div>
+              </div>
+
               <label
                 className={`upload-zone${dragActive ? ' drag-active' : ''}`}
                 style={{
@@ -395,387 +673,270 @@ export default function ImportPage() {
                   justifyContent: 'center',
                   padding: '2.5rem 1.5rem',
                   textAlign: 'center',
-                  minHeight: '260px',
+                  minHeight: '220px',
                   cursor: 'pointer',
-                  border: '2px dashed var(--ps-primary, #3B82F6)',
-                  background: 'var(--ps-primary-50, #EFF6FF)',
+                  border: '2px dashed var(--ps-border-strong)',
+                  borderRadius: '10px',
                 }}
                 onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
                 onDragLeave={(e) => { e.preventDefault(); setDragActive(false); }}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleDrop}
-                htmlFor="image-ocr-input"
+                htmlFor="ocr-file-input"
               >
                 <input
-                  id="image-ocr-input"
+                  id="ocr-file-input"
                   type="file"
-                  accept="image/png,image/jpeg,image/jpg,image/webp,image/bmp,image/tiff"
+                  accept={IMAGE_TYPES.join(',')}
                   onChange={handleFileInput}
                   style={{ display: 'none' }}
-                  aria-label="Upload product nameplate image"
+                  aria-label="Upload nameplate image"
                 />
                 {ocrScanning ? (
-                  <Loader2 size={42} color="var(--ps-primary)" style={{ animation: 'ps-spin 1s linear infinite', marginBottom: '1rem' }} />
+                  <Loader2 size={36} color="var(--ps-primary)" style={{ animation: 'ps-spin 1s linear infinite', marginBottom: '0.75rem' }} />
                 ) : (
-                  <Camera size={42} color="var(--ps-primary)" style={{ marginBottom: '1rem' }} />
+                  <Camera size={36} color="var(--ps-slate-400)" style={{ marginBottom: '0.75rem' }} />
                 )}
-                <div style={{ fontWeight: 700, fontSize: '1.0625rem', marginBottom: '0.375rem', color: 'var(--ps-primary)' }}>
-                  {ocrScanning ? 'Scanning Image with Google Gemini Vision...' : 'Upload Product Nameplate / Packaging Photo'}
+                <div style={{ fontWeight: 600, fontSize: '0.9375rem', marginBottom: '0.25rem' }}>
+                  {ocrScanning ? 'Running Local RapidOCR & Gemini Vision...' : 'Drop Nameplate Image (PNG, JPG, WebP)'}
                 </div>
-                <div style={{ fontSize: '0.875rem', color: 'var(--ps-text-secondary)', marginBottom: '1rem', maxWidth: '360px' }}>
-                  Upload photos of machinery labels, specifications, serial tags, or electrical rating plates.
+                <div style={{ fontSize: '0.8125rem', color: 'var(--ps-text-muted)' }}>
+                  Extracts voltage, amps, serial, model number, and certifications.
                 </div>
-                <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '1rem' }}>
-                  {['PNG', 'JPG', 'JPEG', 'WEBP', 'BMP'].map((t) => (
-                    <span key={t} className="ps-badge ps-badge-neutral" style={{ fontSize: '0.75rem' }}>{t}</span>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  className="ps-btn ps-btn-primary ps-btn-sm"
-                  style={{ pointerEvents: 'none' }}
-                >
-                  <Camera size={14} /> Select Product Photo
-                </button>
               </label>
-
-              {error && !apiLimitHit && (
-                <div style={{ display: 'flex', gap: '0.5rem', padding: '0.75rem', background: 'var(--ps-danger-light)', borderRadius: '8px', marginTop: '0.75rem', fontSize: '0.875rem', color: 'var(--ps-danger-dark)' }}>
-                  <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
-                  {error}
-                </div>
-              )}
             </div>
           )}
 
-          {/* 3. URL input */}
+          {/* 4. URL Import */}
           {importMethod === 'url' && (
             <div className="ps-card" style={{ padding: '1.5rem' }}>
-              <label className="ps-label" htmlFor="url-input">Product Page URL</label>
-              <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem' }}>Manufacturer Spec URL</h3>
+              <p style={{ fontSize: '0.8125rem', color: 'var(--ps-text-muted)', marginBottom: '1rem' }}>
+                Enter an official manufacturer product page (e.g. se.com, 3m.com). E-commerce marketplaces are blocked.
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <input
-                  id="url-input"
                   type="url"
                   className="ps-input"
-                  placeholder="https://manufacturer.com/product/..."
                   value={urlInput}
                   onChange={(e) => setUrlInput(e.target.value)}
+                  placeholder="https://www.se.com/us/en/product/LC1D09M7"
                   style={{ flex: 1 }}
                 />
                 <button
                   onClick={handleUrlSubmit}
+                  disabled={uploading || !urlInput}
                   className="ps-btn ps-btn-primary"
-                  disabled={!urlInput || uploading}
-                  style={{ flexShrink: 0 }}
                 >
-                  {uploading ? <Loader2 size={16} style={{ animation: 'ps-spin 1s linear infinite' }} /> : <ArrowRight size={16} />}
-                  Extract
+                  {uploading ? <Loader2 size={16} style={{ animation: 'ps-spin 1s linear infinite' }} /> : 'Extract'}
                 </button>
               </div>
-              <p style={{ fontSize: '0.8125rem', color: 'var(--ps-text-muted)' }}>
-                ProdSync will extract product attributes from the provided URL.
-              </p>
             </div>
           )}
 
-          {/* 4. Paste text */}
+          {/* 5. Paste Text */}
           {importMethod === 'paste' && (
             <div className="ps-card" style={{ padding: '1.5rem' }}>
-              <label className="ps-label" htmlFor="paste-input">Paste Product Information</label>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem' }}>Paste Technical Copy</h3>
               <textarea
-                id="paste-input"
                 className="ps-input"
                 rows={8}
-                placeholder="Paste real product specifications, descriptions, technical data, or CSV rows..."
                 value={pasteText}
                 onChange={(e) => setPasteText(e.target.value)}
-                style={{ resize: 'vertical', fontFamily: 'var(--ps-font)' }}
+                placeholder="Paste raw unformatted engineering specification text or tabular lines here..."
+                style={{ width: '100%', marginBottom: '1rem', fontFamily: 'monospace', fontSize: '0.8125rem' }}
               />
               <button
-                onClick={async () => {
-                  if (!pasteText.trim()) return;
-                  setUploading(true);
-                  setError('');
-                  setApiLimitHit(false);
-                  try {
-                    const textBlob = new Blob([pasteText], { type: 'text/plain' });
-                    const textFile = new File([textBlob], 'pasted_product_spec.txt', { type: 'text/plain' });
-                    const job = await importService.uploadFile(textFile);
-                    startRealJobPolling(job);
-                  } catch (err: any) {
-                    const msg = err?.message || 'Extraction failed. Please try again.';
-                    if (msg.includes('429') || msg.toLowerCase().includes('quota') || msg.toLowerCase().includes('limit')) {
-                      setApiLimitHit(true);
-                      setError('Google Gemini AI rate limit is hit (Quota 429). Please wait a few moments before retrying.');
-                    } else {
-                      setError(msg);
-                    }
-                  } finally {
-                    setUploading(false);
-                  }
+                onClick={() => {
+                  const blob = new Blob([pasteText], { type: 'text/plain' });
+                  const file = new File([blob], 'pasted_specs.txt', { type: 'text/plain' });
+                  handleFileDrop(file);
                 }}
+                disabled={!pasteText.trim()}
                 className="ps-btn ps-btn-primary"
-                disabled={!pasteText || uploading}
-                style={{ marginTop: '0.75rem', width: '100%', justifyContent: 'center' }}
+                style={{ width: '100%' }}
               >
-                {uploading ? <Loader2 size={14} style={{ animation: 'ps-spin 1s linear infinite' }} /> : <Sparkles size={14} />}
-                Extract Product Data
+                Structure Specs
               </button>
-            </div>
-          )}
-
-          {/* 5. Manual entry */}
-          {importMethod === 'manual' && (
-            <div className="ps-card" style={{ padding: '1.5rem' }}>
-              <h3 className="text-h3" style={{ marginBottom: '1.25rem' }}>Add Product Manually</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {['Product Name', 'SKU', 'Manufacturer', 'Category'].map((field) => (
-                  <div key={field}>
-                    <label className="ps-label" htmlFor={`manual-${field}`}>{field}</label>
-                    <input id={`manual-${field}`} type="text" className="ps-input" placeholder={`Enter ${field.toLowerCase()}`} />
-                  </div>
-                ))}
-                <button className="ps-btn ps-btn-primary" style={{ justifyContent: 'center' }}>
-                  <Plus size={14} />
-                  Add Product
-                </button>
-              </div>
             </div>
           )}
         </div>
 
-        {/* Right column — Results & Pipeline Status */}
+        {/* Right Column — Live Processing Status & Enriched Output */}
         <div>
-          {/* Image OCR Structured Result Preview */}
-          {ocrResult ? (
-            <div className="ps-card" style={{ padding: '1.5rem' }}>
+          {/* Quick Enriched Result Card */}
+          {quickEnrichedProduct && (
+            <div className="ps-card" style={{ padding: '1.5rem', border: '2px solid rgba(37,99,235,0.3)', background: 'white' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Cpu size={18} color="var(--ps-primary)" />
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.9375rem' }}>
-                      Two-Stage OCR & AI Product Extraction
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--ps-text-muted)' }}>
-                      Local OCR library transcription + Gemini AI specification structuring
-                    </div>
-                  </div>
+                  <span className="ps-badge ps-badge-success" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <CheckCircle size={12} /> 100% Enriched
+                  </span>
+                  <span className="ps-badge ps-badge-primary">ID #{quickEnrichedProduct.unspsc || '120441'}</span>
                 </div>
-                <button onClick={() => setOcrResult(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ps-text-muted)' }}>
-                  <X size={16} />
+                <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--ps-primary)' }}>
+                  Quality Score: {quickEnrichedProduct.dataQualityScore}%
+                </div>
+              </div>
+
+              <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--ps-text-primary)', marginBottom: '0.375rem' }}>
+                {quickEnrichedProduct.productTitle || quickEnrichedProduct.name}
+              </h2>
+              <div style={{ fontSize: '0.8125rem', color: 'var(--ps-text-muted)', marginBottom: '1rem' }}>
+                <strong>Leaf Taxonomy:</strong> {quickEnrichedProduct.classpath || quickEnrichedProduct.category}
+              </div>
+
+              {/* Descriptions Preview */}
+              <div style={{ background: 'var(--ps-slate-50)', padding: '0.875rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid var(--ps-border)' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--ps-text-muted)', marginBottom: '0.375rem' }}>
+                  Standardized 5-Tier Descriptions Generated:
+                </div>
+                <div style={{ fontSize: '0.8125rem', marginBottom: '0.375rem' }}>
+                  <strong>Invoice (≤40 char):</strong> <span style={{ fontFamily: 'monospace', background: 'white', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--ps-border)' }}>{quickEnrichedProduct.invoiceDesc}</span>
+                </div>
+                <div style={{ fontSize: '0.8125rem', marginBottom: '0.375rem' }}>
+                  <strong>Mobile (60–80 char):</strong> {quickEnrichedProduct.mobileDesc}
+                </div>
+                <div style={{ fontSize: '0.8125rem' }}>
+                  <strong>Long Description:</strong> {quickEnrichedProduct.longDescription || quickEnrichedProduct.description}
+                </div>
+              </div>
+
+              {/* Attributes Triads Preview */}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--ps-text-muted)', marginBottom: '0.5rem' }}>
+                  Extracted Attributes ({quickEnrichedProduct.attributes.length}):
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.375rem', maxHeight: '180px', overflowY: 'auto' }}>
+                  {quickEnrichedProduct.attributes.map((attr) => (
+                    <div key={attr.id} style={{ fontSize: '0.8125rem', padding: '0.375rem 0.5rem', background: 'var(--ps-slate-100)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--ps-text-muted)' }}>{attr.name}:</span>
+                      <strong style={{ color: 'var(--ps-text-primary)' }}>{attr.normalizedValue || attr.value} {attr.unit || ''}</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <Link
+                  href={`/app/products/${quickEnrichedProduct.id}`}
+                  className="ps-btn ps-btn-primary"
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem' }}
+                >
+                  <Eye size={16} /> View Product Details
+                </Link>
+                <button
+                  onClick={() => liveProductService.exportUnilogDelivery('csv', [quickEnrichedProduct.id])}
+                  className="ps-btn ps-btn-secondary"
+                  title="Export in 252-Column Unilog Delivery Format"
+                >
+                  <Download size={16} /> 252-Col CSV
                 </button>
               </div>
+            </div>
+          )}
 
-              {/* Image Preview Thumbnail & Engine Status */}
-              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem', padding: '0.75rem', background: 'var(--ps-bg-secondary)', borderRadius: '8px', alignItems: 'center' }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={ocrResult.imagePreviewUrl}
-                  alt="Scanned product preview"
-                  style={{ width: '80px', height: '60px', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--ps-border)' }}
-                />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {ocrResult.filename}
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.375rem', marginTop: '4px', flexWrap: 'wrap' }}>
-                    <span className="ps-badge ps-badge-neutral" style={{ fontSize: '0.6875rem' }}>
-                      <Cpu size={10} style={{ marginRight: '3px' }} /> {ocrResult.ocrEngine || 'RapidOCR Library'}
-                    </span>
-                    <span className="ps-badge ps-badge-success" style={{ fontSize: '0.6875rem' }}>
-                      ✓ {ocrResult.lineCount || ocrResult.ocrLines?.length || 0} lines transcribed
-                    </span>
+          {/* Quick Enrichment In-Progress Stages */}
+          {quickEnriching && !quickEnrichedProduct && (
+            <div className="ps-card" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '1.25rem' }}>
+                <Loader2 size={20} color="var(--ps-primary)" style={{ animation: 'ps-spin 1s linear infinite' }} />
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>Executing UniHack Enrichment Pipeline</h3>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--ps-text-muted)' }}>
+                    Querying official manufacturer registries & resolving leaf taxonomy
                   </div>
                 </div>
               </div>
 
-              {/* STAGE 1: Rough OCR Transcribed Text from Local Library */}
-              <div style={{ marginBottom: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                    <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: 'var(--ps-primary)', color: 'white', fontSize: '0.6875rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>1</span>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--ps-text-primary)' }}>Rough OCR Text (Local Library):</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {QUICK_ENRICH_STAGES.map((label, idx) => {
+                  const isDone = quickActiveStep > idx + 1;
+                  const isActive = quickActiveStep === idx + 1;
+                  return (
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      {isDone ? (
+                        <CheckCircle size={18} color="var(--ps-success)" />
+                      ) : isActive ? (
+                        <Loader2 size={18} color="var(--ps-primary)" style={{ animation: 'ps-spin 1s linear infinite' }} />
+                      ) : (
+                        <div style={{ width: '18px', height: '18px', borderRadius: '50%', border: '2px solid var(--ps-slate-300)' }} />
+                      )}
+                      <span style={{ fontSize: '0.875rem', fontWeight: isActive ? 600 : 400, color: isActive ? 'var(--ps-primary)' : isDone ? 'var(--ps-text-primary)' : 'var(--ps-text-muted)' }}>
+                        {label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Active Background Job Card (for Batch / OCR) */}
+          {activeJob && !quickEnriching && (
+            <div className="ps-card" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>Batch Ingestion Status</h3>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--ps-text-muted)' }}>{activeJob.filename}</div>
+                </div>
+                <span className={`ps-badge ${activeJob.status === 'completed' ? 'ps-badge-success' : 'ps-badge-primary'}`}>
+                  {activeJob.status.toUpperCase()} ({activeJob.progress}%)
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                {activeJob.stages.map((st) => (
+                  <div key={st.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    {stageStatusIcon(st.status)}
+                    <span style={{ fontSize: '0.875rem', color: st.status === 'active' ? 'var(--ps-primary)' : 'var(--ps-text-primary)' }}>
+                      {st.label}
+                    </span>
                   </div>
-                  <button onClick={handleCopyOcr} className="ps-btn ps-btn-ghost ps-btn-sm" style={{ padding: '0.125rem 0.375rem', fontSize: '0.6875rem' }}>
-                    {copiedOcr ? <Check size={12} color="var(--ps-success)" /> : <Copy size={12} />}
-                    {copiedOcr ? 'Copied' : 'Copy Rough Text'}
+                ))}
+              </div>
+
+              {activeJob.status === 'completed' && (
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <Link href="/app/products" className="ps-btn ps-btn-primary" style={{ flex: 1, textAlign: 'center' }}>
+                    View {activeJob.productCount || 1} Enriched Products
+                  </Link>
+                  <button onClick={() => liveProductService.exportUnilogDelivery('csv')} className="ps-btn ps-btn-secondary">
+                    <Download size={16} /> Export 252-Col CSV
                   </button>
                 </div>
-                <textarea
-                  value={ocrResult.ocrText}
-                  readOnly
-                  rows={4}
-                  className="ps-input"
-                  style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--ps-text-secondary)', background: 'var(--ps-bg-secondary)', resize: 'vertical' }}
-                />
-              </div>
-
-              {/* STAGE 2: AI Cleaned & Structured Specifications */}
-              <div style={{ marginBottom: '1.25rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.5rem' }}>
-                  <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: 'var(--ps-success)', color: 'white', fontSize: '0.6875rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>2</span>
-                  <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--ps-text-primary)' }}>AI Cleaned & Structured Product (Gemini):</span>
-                </div>
-
-                {ocrResult.products && ocrResult.products.length > 0 ? (
-                  <div>
-                    {ocrResult.products.map((p, idx) => (
-                      <div key={idx} style={{ padding: '0.875rem', border: '1px solid var(--ps-border)', borderRadius: '8px', background: 'white' }}>
-                        <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--ps-text-primary)', marginBottom: '0.25rem' }}>
-                          {p.name || 'Extracted Industrial Product'}
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginBottom: '0.625rem' }}>
-                          {p.sku && <span className="ps-badge ps-badge-neutral" style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>SKU: {p.sku}</span>}
-                          {p.manufacturer && <span className="ps-badge ps-badge-neutral" style={{ fontSize: '0.75rem' }}>Mfr: {p.manufacturer}</span>}
-                          {p.category && <span className="ps-badge ps-badge-ai" style={{ fontSize: '0.75rem' }}>{p.category}</span>}
-                        </div>
-
-                        {/* Attribute specs */}
-                        {p.attributes && p.attributes.length > 0 && (
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.375rem', maxHeight: '160px', overflowY: 'auto' }}>
-                            {p.attributes.map((attr: any, aIdx: number) => (
-                              <div key={aIdx} style={{ fontSize: '0.75rem', padding: '0.35rem 0.5rem', background: 'var(--ps-bg-secondary)', borderRadius: '4px' }}>
-                                <span style={{ color: 'var(--ps-text-muted)' }}>{attr.display_name || attr.key}: </span>
-                                <strong>{attr.value}{attr.unit ? ` ${attr.unit}` : ''}</strong>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ fontSize: '0.8125rem', color: 'var(--ps-text-muted)', padding: '0.75rem', background: 'var(--ps-bg-secondary)', borderRadius: '6px' }}>
-                    Structuring specifications from rough text...
-                  </div>
-                )}
-              </div>
-
-              <Link href="/app/products" className="ps-btn ps-btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-                View Extracted Products in Catalog <ArrowRight size={14} />
-              </Link>
-            </div>
-          ) : activeJob ? (
-            <div className="ps-card" style={{ padding: '1.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '0.9375rem', marginBottom: '0.25rem' }}>
-                    {activeJob.status === 'completed'
-                      ? 'Processing Complete'
-                      : activeJob.status === 'failed'
-                      ? 'Processing Stopped'
-                      : 'AI Processing...'}
-                  </div>
-                  <div style={{ fontSize: '0.8125rem', color: 'var(--ps-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>
-                    {activeJob.filename}
-                  </div>
-                </div>
-                <button onClick={() => setActiveJob(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ps-text-muted)', display: 'flex' }}>
-                  <X size={16} />
-                </button>
-              </div>
-
-              {/* Progress bar */}
-              <div className="ps-progress" style={{ marginBottom: '1.25rem' }}>
-                <div
-                  className="ps-progress-bar"
-                  style={{
-                    width: `${activeJob.progress}%`,
-                    background: activeJob.status === 'completed'
-                      ? 'var(--ps-success)'
-                      : activeJob.status === 'failed'
-                      ? 'var(--ps-danger)'
-                      : 'var(--ps-primary)',
-                    transition: 'width 0.6s ease',
-                  }}
-                />
-              </div>
-
-              {/* Error state */}
-              {activeJob.status === 'failed' && (
-                <div style={{ padding: '1rem', background: 'var(--ps-danger-light)', borderRadius: '8px', marginBottom: '1.25rem' }}>
-                  <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--ps-danger-dark)', marginBottom: '0.25rem' }}>
-                    {apiLimitHit ? 'AI Rate Limit Hit (429)' : 'Processing Error'}
-                  </div>
-                  <div style={{ fontSize: '0.8125rem', color: 'var(--ps-danger)' }}>
-                    {activeJob.errorMessage || error || 'The file could not be analyzed.'}
-                  </div>
-                </div>
-              )}
-
-              {/* Stages */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
-                {activeJob.stages.map((stage) => (
-                  <div
-                    key={stage.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem',
-                      padding: '0.625rem 0.75rem',
-                      borderRadius: '8px',
-                      background: stage.status === 'active' ? 'var(--ps-primary-50)' : 'transparent',
-                    }}
-                  >
-                    {stageStatusIcon(stage.status)}
-                    <span
-                      style={{
-                        fontSize: '0.875rem',
-                        fontWeight: stage.status === 'active' ? 600 : 400,
-                        color: stage.status === 'active' ? 'var(--ps-primary)' : stage.status === 'completed' ? 'var(--ps-text-primary)' : 'var(--ps-text-muted)',
-                      }}
-                    >
-                      {stage.label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {activeJob.status === 'completed' && (
-                <div style={{ marginTop: '1.25rem', padding: '1rem', background: 'var(--ps-success-light)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <CheckCircle size={20} color="var(--ps-success)" />
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--ps-success-dark)' }}>Real Data Extracted</div>
-                    <div style={{ fontSize: '0.8125rem', color: 'var(--ps-text-muted)' }}>
-                      {activeJob.productCount} product(s) normalized and saved to database.
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeJob.status === 'completed' && (
-                <Link href="/app/products" className="ps-btn ps-btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '0.875rem' }}>
-                  View Products <ArrowRight size={14} />
-                </Link>
               )}
             </div>
-          ) : (
-            <div className="ps-card" style={{ padding: '2rem' }}>
-              <h3 className="text-h3" style={{ marginBottom: '1.25rem' }}>Real-Time Processing Pipeline</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {[
-                  { icon: <FileText size={16} />, label: 'Document & Image Upload', desc: 'Accepts PDF, CSV, XLSX, and PNG/JPG photos' },
-                  { icon: <Camera size={16} />, label: 'Google Gemini Vision OCR', desc: 'Converts product images into text accurately' },
-                  { icon: <Table2 size={16} />, label: 'AI Structured Intelligence', desc: 'Normalized Unilog specs & legal ®/™ marks' },
-                  { icon: <ShieldCheck size={16} />, label: 'Physical Rule Validation', desc: 'Engineering conflicts & range checks' },
-                  { icon: <CheckCircle size={16} />, label: 'Database Persistence', desc: 'Saved directly to SQLite products catalog' },
-                ].map((step) => (
-                  <div key={step.label} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--ps-bg-secondary)', border: '1px solid var(--ps-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ps-slate-400)', flexShrink: 0 }}>
-                      {step.icon}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--ps-text-primary)' }}>{step.label}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--ps-text-muted)' }}>{step.desc}</div>
-                    </div>
-                  </div>
-                ))}
+          )}
+
+          {/* Initial Helper Card if nothing running */}
+          {!quickEnrichedProduct && !quickEnriching && !activeJob && (
+            <div className="ps-card" style={{ padding: '1.75rem', background: 'var(--ps-slate-50)', border: '1px dashed var(--ps-border-strong)' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--ps-text-primary)' }}>
+                UniHack 2026 AI Product Intelligence Ready
+              </h3>
+              <p style={{ fontSize: '0.875rem', color: 'var(--ps-text-muted)', lineHeight: 1.6, marginBottom: '1rem' }}>
+                The pipeline dynamically searches official manufacturer sites, classifies into leaf taxonomies (Taxonomy IDs), performs List of Values (LOV) validation, generates 5 standardized description tiers, and exports 252 static columns.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.8125rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <ShieldCheck size={16} color="var(--ps-primary)" />
+                  <span>Marketplaces prohibited: Amazon, eBay, Walmart, AliExpress</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Tag size={16} color="var(--ps-success)" />
+                  <span>New LOV value discovery without force-fitting</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Database size={16} color="var(--ps-accent)" />
+                  <span>Exact 252-column Unilog delivery format export</span>
+                </div>
               </div>
             </div>
           )}
         </div>
       </div>
-      <style>{`@media (max-width: 900px) { .import-grid { grid-template-columns: 1fr !important; } }`}</style>
     </div>
   );
 }

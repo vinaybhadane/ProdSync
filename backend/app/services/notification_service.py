@@ -200,6 +200,10 @@ class NotificationService:
         await db.commit()
 
 
+from sqlalchemy.orm import selectinload
+from app.ai.normalization.unilog_delivery_exporter import unilog_delivery_exporter, UNILOG_DELIVERY_HEADERS
+
+
 class ExportService:
     @classmethod
     async def export_products_data(
@@ -208,7 +212,10 @@ class ExportService:
         """
         Exports commerce-ready product intelligence in CSV, XLSX, or JSON format.
         """
-        query = select(Product).where(
+        query = select(Product).options(
+            selectinload(Product.attributes),
+            selectinload(Product.sources),
+        ).where(
             Product.organization_id == organization_id, Product.is_deleted == False
         )
         if product_ids:
@@ -222,18 +229,26 @@ class ExportService:
                 "ID": p.id,
                 "SKU": p.sku,
                 "Name": p.name,
+                "Brand": p.brand or p.manufacturer,
                 "Manufacturer": p.manufacturer,
+                "MPN": p.manufacturer_part_number or p.sku,
                 "Category": p.category,
+                "Classpath": p.classpath,
+                "UNSPSC": p.unspsc or "40151500",
                 "Status": p.status,
                 "Validation Status": p.validation_status,
                 "Data Quality Score": p.data_quality_score,
                 "AI Confidence Score": p.ai_confidence_score,
                 "Completeness Score": p.completeness_score,
-                "Description": p.description,
+                "Short Description": p.product_title or p.name,
+                "Mobile Description": p.mobile_desc,
+                "Invoice Description": p.invoice_desc,
+                "Long Description": p.long_description or p.description,
             }
-            # Flatten raw technical attributes
-            for k, v in (p.raw_attributes or {}).items():
-                row[f"Attr_{k}"] = v
+            # Add all individual technical attributes
+            for a in p.attributes:
+                k = a.display_name or a.attribute_key
+                row[f"Attr_{k}"] = f"{a.normalized_value or a.value}{(' ' + a.unit) if a.unit else ''}"
             records.append(row)
 
         df = pd.DataFrame(records)
@@ -248,6 +263,46 @@ class ExportService:
         else:
             # Default CSV
             return df.to_csv(index=False).encode("utf-8")
+
+    @classmethod
+    async def export_unilog_delivery(
+        cls, db: AsyncSession, organization_id: str, product_ids: Optional[List[str]] = None, format_type: str = "csv"
+    ) -> bytes:
+        """
+        Exports products in the exact 252-column Unilog delivery format.
+        """
+        query = select(Product).options(
+            selectinload(Product.attributes),
+            selectinload(Product.sources),
+        ).where(
+            Product.organization_id == organization_id, Product.is_deleted == False
+        )
+        if product_ids:
+            query = query.where(Product.id.in_(product_ids))
+
+        products = (await db.execute(query)).scalars().all()
+        
+        delivery_records = [
+            unilog_delivery_exporter.process_product_to_delivery(p)
+            for p in products
+        ]
+
+        if format_type.lower() == "xlsx":
+            df = pd.DataFrame(delivery_records)
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+                df.to_excel(writer, index=False, sheet_name="Unilog Delivery")
+            return buffer.getvalue()
+        elif format_type.lower() == "json":
+            return json.dumps(delivery_records, indent=2, default=str).encode("utf-8")
+        else:
+            # Default CSV with 252 columns
+            output = io.StringIO()
+            writer = csv.DictWriter(output, fieldnames=UNILOG_DELIVERY_HEADERS, lineterminator="\n")
+            writer.writeheader()
+            for r in delivery_records:
+                writer.writerow(r)
+            return output.getvalue().encode("utf-8")
 
 
 notification_service = NotificationService()
