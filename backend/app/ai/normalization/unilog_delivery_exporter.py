@@ -76,10 +76,7 @@ class UnilogDeliveryExporter:
             part_desc=part_desc,
         )
 
-        # 2. Extract technical specs from description using regex and unit standards
-        extracted_attrs = cls._extract_attributes_from_text(f"{part_desc} {mpn}")
-
-        # 3. Leaf Taxonomy Classification
+        # 2. Leaf Taxonomy Classification
         tax_info = taxonomy_engine.classify_product(
             name=part_desc,
             manufacturer=norm_mfg,
@@ -91,6 +88,15 @@ class UnilogDeliveryExporter:
         p_class = tax_info["class_name"]
         fine = tax_info["fine"]
         leaf_category = tax_info["leaf_category"]
+
+        # 3. Extract deep technical specs using Category Archetype AI
+        from app.ai.enrichment.category_archetype_ai import category_archetype_ai
+        extracted_attrs = category_archetype_ai.extract_deep_category_attributes(
+            text=part_desc,
+            category=leaf_category,
+            mpn=mpn,
+            brand=norm_brand,
+        )
 
         # 4. Generate 5-Tier Unilog Descriptions
         tier_descs = unilog_description_builder.build_all_tiers(

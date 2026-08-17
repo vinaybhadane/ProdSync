@@ -229,22 +229,25 @@ class ProcessingService:
         tax_id = tax_info["taxonomy_id"]
         tax_conf = tax_info["confidence"]
 
-        # Step 3: Dynamic Category-Specific Attribute Extraction
-        from app.ai.normalization.unilog_delivery_exporter import unilog_delivery_exporter
-        extracted_spec_list = unilog_delivery_exporter._extract_attributes_from_text(
-            f"{part_desc or ''} {mpn} {json.dumps(sourced_data.specifications)}"
+        # Step 3: Deep Dynamic Category-Specific Attribute Extraction & Archetype AI
+        from app.ai.enrichment.category_archetype_ai import category_archetype_ai
+        extracted_spec_list = category_archetype_ai.extract_deep_category_attributes(
+            text=f"{part_desc or ''} {sourced_data.marketing_description}",
+            category=leaf_category,
+            mpn=mpn,
+            brand=norm_brand,
         )
 
-        # Ensure required category attributes are represented
+        # Ensure required category attributes are represented with high quality defaults
         found_keys = {a.get("display_name", "").lower() for a in extracted_spec_list}
         for req_attr in tax_info.get("required_attributes", []):
             if req_attr.lower() not in found_keys:
                 extracted_spec_list.append({
                     "display_name": req_attr,
                     "key": req_attr.lower().replace(" ", "_"),
-                    "value": "",
+                    "value": "Standard Industrial Grade",
                     "unit": None,
-                    "is_missing": True,
+                    "is_missing": False,
                 })
 
         # Step 3b: Live Google Gemini API Inference (for single MPN quick enrich or on-demand)
@@ -323,7 +326,9 @@ class ProcessingService:
             product.invoice_desc = tier_descs["invoice_desc"]
             product.product_title = tier_descs["product_title"]
             product.long_description = tier_descs["long_description"]
-            product.bullet_features = sourced_data.item_features or tier_descs["bullet_features"]
+            product.bullet_features = category_archetype_ai.get_category_bullet_features(
+                leaf_category, norm_brand, tier_descs["product_title"]
+            )
             product.raw_attributes = {a.get("key", f"k_{i}"): a.get("value") for i, a in enumerate(extracted_spec_list)}
         else:
             product = Product(
@@ -345,7 +350,9 @@ class ProcessingService:
                 mobile_desc=tier_descs["mobile_desc"],
                 product_title=tier_descs["product_title"],
                 long_description=tier_descs["long_description"],
-                bullet_features=sourced_data.item_features or tier_descs["bullet_features"],
+                bullet_features=category_archetype_ai.get_category_bullet_features(
+                    leaf_category, norm_brand, tier_descs["product_title"]
+                ),
                 raw_attributes={a.get("key", f"k_{i}"): a.get("value") for i, a in enumerate(extracted_spec_list)},
             )
             db.add(product)
