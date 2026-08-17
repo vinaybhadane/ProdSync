@@ -52,9 +52,9 @@ app = FastAPI(
     title="ProdSync API",
     version="0.1.0",
     description="Production-Ready Azure Backend for ProdSync AI Product Intelligence Platform",
-    docs_url="/docs" if settings.DEBUG else None,
-    redoc_url="/redoc" if settings.DEBUG else None,
-    openapi_url="/openapi.json" if settings.DEBUG else None,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
     lifespan=lifespan,
 )
 
@@ -124,10 +124,12 @@ async def health_check():
 
 
 if __name__ == "__main__":
+    import os
     import uvicorn
+    server_port = int(os.environ.get("PORT", settings.PORT))
     uvicorn.run(
         "app.main:app",
-        host=settings.HOST,
-        port=settings.PORT,
+        host="0.0.0.0",
+        port=server_port,
         reload=settings.DEBUG,
     )

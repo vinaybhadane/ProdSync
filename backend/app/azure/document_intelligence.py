@@ -14,13 +14,13 @@ from app.core.logging import logger
 try:
     from rapidocr_onnxruntime import RapidOCR  # type: ignore[import-untyped,import-not-found]
     RAPIDOCR_AVAILABLE = True
-except ImportError:
+except Exception:
     RAPIDOCR_AVAILABLE = False
 
 try:
     import pytesseract  # type: ignore[import-untyped,import-not-found]
     PYTESSERACT_AVAILABLE = True
-except ImportError:
+except Exception:
     PYTESSERACT_AVAILABLE = False
 
 
@@ -29,7 +29,7 @@ try:
     from azure.core.credentials import AzureKeyCredential
     from azure.identity.aio import DefaultAzureCredential
     DOC_INTEL_AVAILABLE = True
-except ImportError:
+except Exception:
     DOC_INTEL_AVAILABLE = False
 
 

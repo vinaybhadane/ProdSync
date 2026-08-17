@@ -15,13 +15,31 @@ from app.core.config import settings
 from app.core.logging import logger
 from app.db.base import Base
 
+def normalize_database_url(raw_url: str) -> str:
+    """Normalizes database URLs for Async SQLAlchemy compatibility across Render, Docker, and local."""
+    if not raw_url:
+        return "sqlite+aiosqlite:///./prodsync.db"
+    url = raw_url.strip()
+    # Render postgres default is 'postgres://...' or 'postgresql://...' without '+asyncpg'
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif url.startswith("postgresql://") and "+asyncpg" not in url:
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    # Render / standard sqlite default is 'sqlite:///...' without '+aiosqlite'
+    elif url.startswith("sqlite://") and "+aiosqlite" not in url:
+        url = url.replace("sqlite://", "sqlite+aiosqlite://", 1)
+    return url
+
+
+normalized_db_url = normalize_database_url(settings.DATABASE_URL)
+
 # Engine configuration
 engine_kwargs = {
     "echo": False,
     "pool_pre_ping": True,
 }
 
-if "sqlite" in settings.DATABASE_URL:
+if "sqlite" in normalized_db_url:
     engine_kwargs["connect_args"] = {
         "check_same_thread": False,
         "timeout": 60,
@@ -31,7 +49,7 @@ else:
     engine_kwargs["max_overflow"] = settings.DB_MAX_OVERFLOW
     engine_kwargs["pool_timeout"] = settings.DB_TIMEOUT
 
-engine: AsyncEngine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
+engine: AsyncEngine = create_async_engine(normalized_db_url, **engine_kwargs)
 
 async_session_factory = async_sessionmaker(
     engine,
@@ -58,7 +76,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def init_db():
     """Initializes tables and configures ultra-fast SQLite WAL & Memory-Mapped I/O."""
     async with engine.begin() as conn:
-        if "sqlite" in settings.DATABASE_URL:
+        if "sqlite" in normalized_db_url:
             # Enable WAL mode for non-blocking concurrent reads & writes
             await conn.exec_driver_sql("PRAGMA journal_mode = WAL;")
             # 60-second busy timeout to prevent transient locks
@@ -77,7 +95,7 @@ async def init_db():
         await conn.run_sync(Base.metadata.create_all)
 
         # Auto-migrate newly added columns for SQLite
-        if "sqlite" in settings.DATABASE_URL:
+        if "sqlite" in normalized_db_url:
             new_columns = [
                 ("brand", "VARCHAR(255) DEFAULT 'Industrial Standard'"),
                 ("series", "VARCHAR(128)"),
