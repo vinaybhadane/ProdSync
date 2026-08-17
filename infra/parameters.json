@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environment": {
+      "value": "production"
+    },
+    "location": {
+      "value": "centralindia"
+    },
+    "appName": {
+      "value": "prodsync"
+    },
+    "postgresAdminUser": {
+      "value": "prodsyncadmin"
+    },
+    "postgresAdminPassword": {
+      "value": "__REPLACE_WITH_STRONG_PASSWORD__"
+    },
+    "imageTag": {
+      "value": "latest"
+    },
+    "firebaseProjectId": {
+      "value": "prodsync06"
+    },
+    "corsOrigins": {
+      "value": "*"
+    }
+  }
+}
