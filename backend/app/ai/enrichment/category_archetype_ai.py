@@ -11,6 +11,7 @@ import json
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
+from app.ai.groq_client import groq_service
 from app.ai.normalization.decimal_fraction import decimal_fraction_converter
 from app.ai.normalization.unit_normalizer import UnitNormalizer
 from app.ai.validation.lov_engine import lov_engine
@@ -314,6 +315,41 @@ class CategoryArchetypeAI:
             "Optimized design delivers reliable continuous operation and low maintenance downtime",
             "Backed by manufacturer warranty and nationwide technical support",
         ]
+
+    @classmethod
+    async def enrich_unseen_category_cluster(
+        cls, category: str, sample_products: List[Dict[str, str]]
+    ) -> Dict[str, Any]:
+        """
+        Uses Groq API for ultra-fast bulk category archetype synthesis with Google Gemini fallback.
+        """
+        if category in ARCHETYPE_CACHE:
+            return ARCHETYPE_CACHE[category]
+
+        # 1. Primary: Use Groq LPU (GPT-OSS-120B) for large batch task
+        if groq_service.api_key:
+            try:
+                res = await groq_service.batch_enrich_archetype_category(category, sample_products)
+                if res and (res.get("common_attributes") or res.get("bullet_features")):
+                    ARCHETYPE_CACHE[category] = res
+                    return res
+            except Exception as ge:
+                logger.warning(f"Groq category enrichment notice: {ge}")
+
+        # 2. Precision Fallback: Use Google Gemini API
+        if openai_service.gemini_client:
+            try:
+                sys_prompt = "You are an industrial catalog engineer. Extract standard engineering specs for category archetype in JSON format."
+                user_p = f"Category: {category}\nSample Items:\n" + "\n".join([f"- {p.get('name')}" for p in sample_products[:10]])
+                res = await openai_service.generate_structured_json(sys_prompt, user_p)
+                data = res.get("data", {})
+                if data:
+                    ARCHETYPE_CACHE[category] = data
+                    return data
+            except Exception as gme:
+                logger.warning(f"Gemini category fallback notice: {gme}")
+
+        return cls.CATEGORY_DEFAULTS.get(category, {})
 
 
 category_archetype_ai = CategoryArchetypeAI()

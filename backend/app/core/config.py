@@ -59,9 +59,12 @@ class Settings(BaseSettings):
     AZURE_STORAGE_CONTAINER_EXPORTS: str = "prod-sync-exports"
     AZURE_STORAGE_CONNECTION_STRING: Optional[str] = None
 
-    # LLM Services (Gemini, Azure OpenAI, OpenAI)
+    # LLM Services (Groq, Gemini, Azure OpenAI, OpenAI)
+    GROQ_API_KEY: Optional[str] = None
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
+    GROQ_FAST_MODEL: str = "openai/gpt-oss-20b"
     GEMINI_API_KEY: Optional[str] = None
-    GEMINI_MODEL: str = "gemini-1.5-flash"
+    GEMINI_MODEL: str = "gemini-3.5-flash-lite"
     OPENAI_API_KEY: Optional[str] = None
     AZURE_OPENAI_ENDPOINT: Optional[str] = None
     AZURE_OPENAI_API_KEY: Optional[str] = None
