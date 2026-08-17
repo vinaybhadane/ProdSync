@@ -192,15 +192,18 @@ class DocumentIntelligenceService:
             except Exception as e:
                 logger.warning(f"Pytesseract notice: {e}")
 
-        # 3. Fallback: UTF-8 decode
-        full_text = data.decode("utf-8", errors="ignore")[:5000]
+        # 3. Cloud/Render Fallback: Gemini Vision API (works everywhere, no native libs needed)
+        logger.info("No local OCR engine available — routing image to Gemini Vision API for extraction.")
         return {
-            "full_text": full_text.strip(),
-            "pages": [{"page_number": 1, "lines": full_text.split("\n")}],
+            "full_text": "",
+            "pages": [{"page_number": 1, "lines": []}],
             "tables": [],
             "records": [],
-            "source": "image_fallback_parser",
-            "engine": "Basic Parser",
+            "source": "gemini_vision",
+            "engine": "Gemini Vision OCR",
+            "use_gemini_vision": True,
+            "raw_image_bytes": data,
+            "file_type": file_type,
         }
 
     def _parse_structured_file(self, data: bytes, file_type: str) -> Dict[str, Any]:

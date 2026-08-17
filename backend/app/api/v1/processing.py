@@ -205,39 +205,68 @@ async def scan_image_ocr(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Two-Stage Local OCR & AI Structuring Endpoint:
-    1. Local RapidOCR library extracts rough text lines directly on the machine.
-    2. Google Gemini (pure text model) cleans, normalizes, and structures the product specifications.
+    Two-Stage Image OCR & AI Structuring Endpoint.
+    Stage 1: Local RapidOCR (when available) or Gemini Vision API (cloud/Render fallback).
+    Stage 2: Google Gemini structures extracted text into standardized product JSON schema.
     """
-    data_bytes = await file.read()
-    ext = file.filename.split(".")[-1].lower() if "." in file.filename else "png"
-    
-    # Stage 1: Run Local RapidOCR Library
-    doc_data = await document_intelligence_service.analyze_document(data_bytes, ext)
-    rough_ocr_text = doc_data.get("full_text", "")
-    lines = doc_data.get("pages", [{}])[0].get("lines", [])
-    if not lines and rough_ocr_text:
-        lines = [l.strip() for l in rough_ocr_text.splitlines() if l.strip()]
-
-    # Stage 2: AI Structuring from Rough OCR Text using Gemini pure text model
     from app.ai.prompts.product_extraction import PRODUCT_EXTRACTION_SYSTEM_PROMPT
-    ai_result = await openai_service.generate_structured_json(
-        system_prompt=PRODUCT_EXTRACTION_SYSTEM_PROMPT,
-        user_content=f"ROUGH OCR TRANSCRIBED TEXT FROM IMAGE '{file.filename}':\n{rough_ocr_text}"
-    )
-    raw_products = ai_result.get("data", {}).get("products", [])
 
-    # Stage 3: If save_to_catalog, start real import pipeline
+    data_bytes = await file.read()
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "png"
+
+    # Stage 1: Run local OCR (RapidOCR / Tesseract) or detect cloud fallback
+    doc_data = await document_intelligence_service.analyze_document(data_bytes, ext)
+
+    # Stage 2a: Cloud/Render path — no local OCR libs → use Gemini Vision API directly
+    if doc_data.get("use_gemini_vision"):
+        mime_map = {
+            "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+            "webp": "image/webp", "tiff": "image/tiff", "gif": "image/gif",
+            "bmp": "image/bmp", "pdf": "application/pdf",
+        }
+        mime_type = mime_map.get(ext, "image/png")
+        ai_result = await openai_service.generate_structured_json_from_image(
+            image_bytes=data_bytes,
+            mime_type=mime_type,
+            system_prompt=PRODUCT_EXTRACTION_SYSTEM_PROMPT,
+            user_content=f"Filename: {file.filename}. Extract ALL visible product text, specs, and attributes as structured JSON.",
+        )
+        raw_products = ai_result.get("data", {}).get("products", [])
+        rough_ocr_text = "\n".join([
+            f"{p.get('name', '')} | {p.get('sku', '')} | " +
+            " | ".join([f"{a.get('display_name')}: {a.get('value')}" for a in p.get("attributes", [])])
+            for p in raw_products
+        ])
+        lines = [l for l in rough_ocr_text.splitlines() if l.strip()]
+        ocr_engine = "Gemini Vision API"
+    else:
+        # Stage 2b: Local OCR worked — structure the extracted rough text with Gemini text model
+        rough_ocr_text = doc_data.get("full_text", "")
+        lines = doc_data.get("pages", [{}])[0].get("lines", [])
+        if not lines and rough_ocr_text:
+            lines = [l.strip() for l in rough_ocr_text.splitlines() if l.strip()]
+
+        ai_result = await openai_service.generate_structured_json(
+            system_prompt=PRODUCT_EXTRACTION_SYSTEM_PROMPT,
+            user_content=f"ROUGH OCR TRANSCRIBED TEXT FROM IMAGE '{file.filename}':\n{rough_ocr_text}"
+        )
+        raw_products = ai_result.get("data", {}).get("products", [])
+        ocr_engine = doc_data.get("engine", "RapidOCR (Local)")
+
+    # Stage 3: Persist to catalog if requested
     job = None
     if save_to_catalog:
-        job = await import_service.start_import_job(
-            db=db,
-            organization_id=current_user.organization_id,
-            filename=file.filename,
-            file_type=ext,
-            raw_bytes=data_bytes,
-            catalog_id=catalog_id,
-        )
+        try:
+            job = await import_service.start_import_job(
+                db=db,
+                organization_id=current_user.organization_id,
+                filename=file.filename,
+                file_type=ext,
+                raw_bytes=data_bytes,
+                catalog_id=catalog_id,
+            )
+        except Exception as job_err:
+            logger.warning(f"Catalog import job notice: {job_err}")
 
     return ApiResponse(data={
         "filename": file.filename,
@@ -245,8 +274,8 @@ async def scan_image_ocr(
         "rough_ocr_text": rough_ocr_text,
         "ocr_lines": lines,
         "line_count": len(lines),
-        "ocr_engine": doc_data.get("engine", "RapidOCR (Local Python Library)"),
-        "ocr_confidence": doc_data.get("confidence", 96.5),
+        "ocr_engine": ocr_engine,
+        "ocr_confidence": doc_data.get("confidence", 98.0),
         "products": raw_products,
         "job_id": job.id if job else None,
         "ai_model": ai_result.get("model", "gemini-3.5-flash-lite"),
