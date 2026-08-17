@@ -143,29 +143,36 @@ export default function DashboardPage() {
   const [activities, setActivities] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadDashboardData = React.useCallback(() => {
-    // Calculate live analytics directly from remaining products in organization
-    const calculated = organizationService.calculateAnalytics(orgId);
-    setAnalytics(calculated);
-
-    const scopedActs = organizationService.getActivity(orgId);
-    if (scopedActs.length > 0) {
-      setActivities(scopedActs);
+  const loadDashboardData = React.useCallback(async () => {
+    try {
+      const [liveStats, liveActs] = await Promise.all([
+        analyticsService.getAnalytics(),
+        liveActivityService.getActivities(undefined, 8).catch(() => []),
+      ]);
+      if (liveStats) {
+        setAnalytics(liveStats);
+      }
+      if (liveActs && liveActs.length > 0) {
+        setActivities(liveActs);
+      } else {
+        const fallbackActs = organizationService.getActivity(orgId);
+        if (fallbackActs.length > 0) setActivities(fallbackActs);
+      }
+    } catch (e) {
+      console.warn('Dashboard live data fetch notice:', e);
+      const calculated = organizationService.calculateAnalytics(orgId);
+      setAnalytics(calculated);
+    } finally {
       setLoading(false);
-    } else {
-      liveActivityService.getActivities(undefined, 8).then((acts) => {
-        setActivities(acts);
-        setLoading(false);
-      }).catch(() => setLoading(false));
     }
   }, [orgId]);
 
   useEffect(() => {
     loadDashboardData();
-    // Auto sync when user refocuses tab or after deletions in another screen
+    // Auto sync when user refocuses tab or after batch imports
     window.addEventListener('focus', loadDashboardData);
     window.addEventListener('storage', loadDashboardData);
-    const interval = setInterval(loadDashboardData, 4000);
+    const interval = setInterval(loadDashboardData, 3500);
     return () => {
       window.removeEventListener('focus', loadDashboardData);
       window.removeEventListener('storage', loadDashboardData);
