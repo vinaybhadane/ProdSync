@@ -3,7 +3,7 @@ Product Management & Catalog Operations Service — Cached & Optimized
 """
 
 from typing import Any, Dict, List, Optional, Tuple
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.ai.confidence.confidence_scorer import ConfidenceScorer
@@ -28,31 +28,25 @@ class ProductService:
         page: int = 1,
         page_size: int = 20,
     ) -> Tuple[List[Product], int]:
-        # Fast query construction with indexed filters
-        query = select(Product).where(
+        # 1. Fast base filter conditions
+        conditions = [
             Product.organization_id == organization_id,
             Product.is_deleted == False,
-        ).options(
-            selectinload(Product.attributes),
-            selectinload(Product.sources),
-            selectinload(Product.validation_issues),
-            selectinload(Product.enrichment_suggestions),
-            selectinload(Product.ai_insights),
-        )
+        ]
 
         if catalog_id:
-            query = query.where(Product.catalog_id == catalog_id)
+            conditions.append(Product.catalog_id == catalog_id)
         if category:
-            query = query.where(Product.category == category)
+            conditions.append(Product.category == category)
         if manufacturer:
-            query = query.where(Product.manufacturer == manufacturer)
+            conditions.append(Product.manufacturer == manufacturer)
         if status:
-            query = query.where(Product.status == status)
+            conditions.append(Product.status == status)
         if validation_status:
-            query = query.where(Product.validation_status == validation_status)
+            conditions.append(Product.validation_status == validation_status)
         if search:
             q = f"%{search}%"
-            query = query.where(
+            conditions.append(
                 or_(
                     Product.name.ilike(q),
                     Product.sku.ilike(q),
@@ -61,16 +55,28 @@ class ProductService:
                 )
             )
 
-        # Count total
-        count_stmt = select(func.count()).select_from(query.subquery())
+        # 2. Ultra-fast direct count without subquery overhead
+        count_stmt = select(func.count(Product.id)).where(and_(*conditions))
         total = (await db.execute(count_stmt)).scalar() or 0
 
-        # Paginate
+        # 3. Paginated query with relationship eager loading for current page only
         offset = (page - 1) * page_size
-        results = (
-            await db.execute(query.order_by(Product.updated_at.desc()).offset(offset).limit(page_size))
-        ).scalars().all()
+        query = (
+            select(Product)
+            .where(and_(*conditions))
+            .options(
+                selectinload(Product.attributes),
+                selectinload(Product.sources),
+                selectinload(Product.validation_issues),
+                selectinload(Product.enrichment_suggestions),
+                selectinload(Product.ai_insights),
+            )
+            .order_by(Product.updated_at.desc())
+            .offset(offset)
+            .limit(page_size)
+        )
 
+        results = (await db.execute(query)).scalars().all()
         return list(results), total
 
     @classmethod

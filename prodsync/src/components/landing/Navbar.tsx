@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, ArrowRight, Sparkles } from 'lucide-react';
+import { Menu, X, ArrowRight, ChevronDown, Sparkles, Layers, Cpu, ShieldCheck, Database, FileSpreadsheet } from 'lucide-react';
 import Logo from '@/components/Logo';
 
 const NAV_LINKS = [
@@ -25,28 +25,34 @@ export default function Navbar() {
   }, []);
 
   return (
-    <nav
+    <header
       className="neu-navbar"
       style={{
-        padding: '0.625rem 1.25rem',
+        boxShadow: scrolled ? '0 4px 20px -2px rgba(15, 23, 42, 0.08)' : '0 1px 3px 0 rgba(15, 23, 42, 0.03)',
+        borderBottom: '1px solid #e2e8f0',
+        backgroundColor: 'rgba(255, 255, 255, 0.96)',
+        backdropFilter: 'blur(8px)',
       }}
       aria-label="Main navigation"
     >
       <div
         style={{
+          maxWidth: '1280px',
+          margin: '0 auto',
+          padding: '0.75rem 1.5rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '1.5rem',
         }}
       >
-        {/* Logo Container */}
+        {/* Brand Logo */}
         <Link href="/" aria-label="ProdSync home" style={{ textDecoration: 'none' }}>
           <Logo size="md" />
         </Link>
 
-        {/* Desktop Nav Links */}
-        <div className="neu-desktop-nav gap-2">
+        {/* Desktop Navigation */}
+        <nav className="neu-desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
           {NAV_LINKS.map((link) => {
             const isActive = pathname === link.href;
             return (
@@ -54,21 +60,31 @@ export default function Navbar() {
                 key={link.href}
                 href={link.href}
                 className={`neu-nav-link ${isActive ? 'active' : ''}`}
+                style={{
+                  color: isActive ? '#2563eb' : '#334155',
+                  fontWeight: isActive ? 600 : 500,
+                  padding: '0.5rem 0.875rem',
+                  fontSize: '0.9375rem',
+                  borderRadius: '6px',
+                  textDecoration: 'none',
+                  transition: 'color 0.15s ease, background-color 0.15s ease',
+                }}
               >
                 {link.label}
               </Link>
             );
           })}
-        </div>
+        </nav>
 
-        {/* Auth Actions */}
-        <div className="neu-desktop-auth gap-3">
+        {/* Desktop Action Buttons */}
+        <div className="neu-desktop-auth" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <Link
             href="/login"
             className="neu-btn neu-btn-secondary"
             style={{
               padding: '0.5rem 1.125rem',
               fontSize: '0.875rem',
+              borderRadius: '6px',
             }}
           >
             Sign In
@@ -79,15 +95,16 @@ export default function Navbar() {
             style={{
               padding: '0.5rem 1.25rem',
               fontSize: '0.875rem',
+              borderRadius: '6px',
               gap: '0.375rem',
             }}
           >
             Get Started
-            <ArrowRight size={15} />
+            <ArrowRight size={14} />
           </Link>
         </div>
 
-        {/* Mobile menu button (ONLY on mobile <=868px) */}
+        {/* Mobile Hamburger Toggle */}
         <button
           className="neu-mobile-toggle neu-btn-icon"
           onClick={() => setMobileOpen(!mobileOpen)}
@@ -97,13 +114,14 @@ export default function Navbar() {
         </button>
       </div>
 
-      {/* Mobile Drawer */}
+      {/* Mobile Navigation Drawer */}
       {mobileOpen && (
         <div
-          className="neu-inset"
           style={{
-            marginTop: '0.875rem',
-            padding: '1rem',
+            borderTop: '1px solid #e2e8f0',
+            backgroundColor: '#ffffff',
+            padding: '1.25rem 1.5rem',
+            boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.1)',
             display: 'flex',
             flexDirection: 'column',
             gap: '0.5rem',
@@ -114,17 +132,24 @@ export default function Navbar() {
               key={link.href}
               href={link.href}
               className="neu-nav-link"
-              style={{ padding: '0.625rem 0.875rem', display: 'block' }}
+              style={{
+                padding: '0.625rem 0.75rem',
+                fontSize: '1rem',
+                fontWeight: 500,
+                color: '#1e293b',
+                borderRadius: '6px',
+                display: 'block',
+              }}
               onClick={() => setMobileOpen(false)}
             >
               {link.label}
             </Link>
           ))}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9' }}>
             <Link
               href="/login"
               className="neu-btn neu-btn-secondary"
-              style={{ padding: '0.625rem', fontSize: '0.875rem' }}
+              style={{ padding: '0.625rem', fontSize: '0.875rem', textAlign: 'center' }}
               onClick={() => setMobileOpen(false)}
             >
               Sign In
@@ -132,7 +157,7 @@ export default function Navbar() {
             <Link
               href="/register"
               className="neu-btn neu-btn-primary"
-              style={{ padding: '0.625rem', fontSize: '0.875rem' }}
+              style={{ padding: '0.625rem', fontSize: '0.875rem', textAlign: 'center' }}
               onClick={() => setMobileOpen(false)}
             >
               Get Started
@@ -140,6 +165,6 @@ export default function Navbar() {
           </div>
         </div>
       )}
-    </nav>
+    </header>
   );
 }

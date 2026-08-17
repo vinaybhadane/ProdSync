@@ -1,110 +1,104 @@
 'use client';
 
 import React from 'react';
-import { Search, ShieldCheck, Sparkles, Grid3X3, ArrowRight } from 'lucide-react';
+import { Search, ShieldCheck, Sparkles, Grid3X3, ArrowRight, Layers, Cpu, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 
 const CAPABILITIES = [
   {
     number: '01',
-    label: 'Extract',
-    icon: <Search size={24} color="#2563eb" />,
-    description: 'Extract technical specifications, tables, and dimensions directly from PDFs, vendor portals, and spreadsheets using local OCR & LLMs.',
-    tag: 'Multi-Modal OCR',
-    tagClass: 'neu-badge-blue',
+    label: 'Extract & Sourcing',
+    icon: <Search size={22} color="#2563eb" />,
+    description: 'Multi-source lookup across official manufacturer domains and authorized distributors with automatic exclusion of consumer marketplaces.',
+    tag: 'Priority Sourcing',
+    badgeStyle: { backgroundColor: '#eff6ff', color: '#2563eb', borderColor: '#dbeafe' },
   },
   {
     number: '02',
-    label: 'Validate',
-    icon: <ShieldCheck size={24} color="#059669" />,
-    description: 'Cross-check numbers against physical laws, catalog constraints, and detect discrepancies between competing vendor sheets.',
-    tag: 'Rule & Physics Engine',
-    tagClass: 'neu-badge-emerald',
+    label: 'Leaf Taxonomy',
+    icon: <Layers size={22} color="#00a896" />,
+    description: 'Deterministic classification across 10,000+ industrial leaf categories with numeric Taxonomy IDs, Classpaths, and dynamic attribute schemas.',
+    tag: 'Hierarchical Taxonomies',
+    badgeStyle: { backgroundColor: '#f0fdfa', color: '#00a896', borderColor: '#ccfbf1' },
   },
   {
     number: '03',
-    label: 'Enrich',
-    icon: <Sparkles size={24} color="#7c3aed" />,
-    description: 'Fill in missing industrial taxonomy, standard UNSPSC/ETIM classifications, and SEO-ready technical summaries with explainable AI.',
-    tag: 'Contextual AI',
-    tagClass: 'neu-badge-purple',
+    label: 'LOV & Validation',
+    icon: <ShieldCheck size={22} color="#059669" />,
+    description: 'Validates specifications against standardized industrial List of Values while dynamically tagging authentic discoveries as NEW_VALUE without destructive force-fitting.',
+    tag: 'Physics & LOV Engine',
+    badgeStyle: { backgroundColor: '#f0fdf4', color: '#059669', borderColor: '#bbf7d0' },
   },
   {
     number: '04',
-    label: 'Structure',
-    icon: <Grid3X3 size={24} color="#d97706" />,
-    description: 'Export cleanly normalized JSON, CSV, or direct ERP/e-commerce feeds with complete confidence scores and field provenance.',
-    tag: 'Commerce Ready',
-    tagClass: 'neu-badge-amber',
+    label: '5-Tier Descriptions',
+    icon: <Grid3X3 size={22} color="#2563eb" />,
+    description: 'Generates Mobile (60-80 char), Invoice (≤40 ALL CAPS), Title, Long narrative, and Retail copy ready for instant 252-column export.',
+    tag: '252-Col Delivery',
+    badgeStyle: { backgroundColor: '#eff6ff', color: '#1d4ed8', borderColor: '#dbeafe' },
   },
 ];
 
 export default function SolutionSection() {
   return (
-    <section style={{ padding: '5rem 1.5rem', position: 'relative' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Badge & Title */}
+    <section style={{ padding: '5rem 1.5rem', backgroundColor: '#ffffff' }}>
+      <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+        {/* Eyebrow & Section Heading */}
         <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-          <div className="neu-badge neu-badge-blue" style={{ marginBottom: '1rem' }}>
-            <Sparkles size={14} />
-            <span>The ProdSync Engine</span>
+          <div className="neu-badge neu-badge-blue" style={{ marginBottom: '0.875rem' }}>
+            <Cpu size={13} />
+            <span>The ProdSync Intelligence Pipeline</span>
           </div>
           <h2
             style={{
-              fontSize: 'clamp(1.75rem, 3.5vw, 2.75rem)',
+              fontSize: 'clamp(1.75rem, 3.2vw, 2.5rem)',
               fontWeight: 800,
-              color: 'var(--neu-text-title)',
+              color: '#0a192f',
               letterSpacing: '-0.025em',
               marginBottom: '1rem',
             }}
           >
-            Four Steps to Complete Product{' '}
-            <span
-              style={{
-                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-            >
-              Mastery
-            </span>
+            Four Stages to Enterprise Catalog Mastery
           </h2>
           <p
             style={{
               fontSize: '1.0625rem',
-              color: 'var(--neu-text-body)',
-              maxWidth: '620px',
+              color: '#475569',
+              maxWidth: '640px',
               margin: '0 auto',
               lineHeight: 1.6,
             }}
           >
-            An end-to-end autonomous pipeline engineered specifically for the precision
-            demanded by industrial manufacturing and technical distribution.
+            An end-to-end normalization and enrichment engine engineered for the strict standards of industrial distribution and commerce.
           </p>
         </div>
 
-        {/* 4 Neumorphic Capability Cards */}
+        {/* 4 Clean Enterprise Capability Cards */}
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-            gap: '1.75rem',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '1.5rem',
             marginBottom: '3rem',
           }}
         >
           {CAPABILITIES.map((cap) => (
             <div
               key={cap.number}
-              className="neu-card"
               style={{
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '10px',
                 padding: '2rem 1.5rem',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
+                boxShadow: '0 1px 3px 0 rgba(15, 23, 42, 0.05)',
+                transition: 'transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease',
               }}
             >
               <div>
-                {/* Number & Icon Row */}
+                {/* Header row: Icon + Stage number */}
                 <div
                   style={{
                     display: 'flex',
@@ -114,11 +108,12 @@ export default function SolutionSection() {
                   }}
                 >
                   <div
-                    className="neu-inset-sm"
                     style={{
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '14px',
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '8px',
+                      backgroundColor: '#f8fafc',
+                      border: '1px solid #e2e8f0',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -126,25 +121,27 @@ export default function SolutionSection() {
                   >
                     {cap.icon}
                   </div>
-                  <div
-                    className="neu-raised-sm"
+                  <span
                     style={{
-                      padding: '0.25rem 0.65rem',
                       fontSize: '0.8125rem',
                       fontWeight: 800,
-                      color: 'var(--neu-text-muted)',
+                      color: '#94a3b8',
+                      backgroundColor: '#f8fafc',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      border: '1px solid #e2e8f0',
                     }}
                   >
-                    {cap.number}
-                  </div>
+                    STAGE {cap.number}
+                  </span>
                 </div>
 
                 <h3
                   style={{
-                    fontSize: '1.25rem',
-                    fontWeight: 800,
-                    color: 'var(--neu-text-title)',
-                    marginBottom: '0.75rem',
+                    fontSize: '1.125rem',
+                    fontWeight: 700,
+                    color: '#0f172a',
+                    marginBottom: '0.625rem',
                   }}
                 >
                   {cap.label}
@@ -153,8 +150,8 @@ export default function SolutionSection() {
                 <p
                   style={{
                     fontSize: '0.875rem',
-                    color: 'var(--neu-text-body)',
-                    lineHeight: 1.6,
+                    color: '#475569',
+                    lineHeight: 1.55,
                     marginBottom: '1.5rem',
                   }}
                 >
@@ -163,7 +160,18 @@ export default function SolutionSection() {
               </div>
 
               <div>
-                <span className={`neu-badge ${cap.tagClass}`} style={{ fontSize: '0.75rem' }}>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    border: `1px solid ${cap.badgeStyle.borderColor}`,
+                    backgroundColor: cap.badgeStyle.backgroundColor,
+                    color: cap.badgeStyle.color,
+                  }}
+                >
                   {cap.tag}
                 </span>
               </div>
@@ -171,19 +179,14 @@ export default function SolutionSection() {
           ))}
         </div>
 
-        {/* Action Button */}
+        {/* Explore Architecture CTA */}
         <div style={{ textAlign: 'center' }}>
           <Link
-            href="/features"
-            className="neu-btn neu-btn-secondary"
-            style={{
-              padding: '0.75rem 1.75rem',
-              fontSize: '0.9375rem',
-              gap: '0.5rem',
-            }}
+            href="/how-it-works"
+            className="neu-text-link"
+            style={{ fontSize: '0.9375rem' }}
           >
-            Explore Full Architecture
-            <ArrowRight size={16} />
+            Explore the 7-stage pipeline walkthrough &rarr;
           </Link>
         </div>
       </div>

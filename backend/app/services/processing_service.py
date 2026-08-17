@@ -186,6 +186,8 @@ class ProcessingService:
         part_desc: Optional[str] = None,
         catalog_id: Optional[str] = None,
         source_filename: Optional[str] = None,
+        fetch_live: bool = False,
+        run_llm_inference: bool = True,
     ) -> Tuple[Product, List[Dict[str, Any]], List[Dict[str, Any]]]:
         """
         Core UniHack 2026 Enrichment Routine for a single product.
@@ -204,6 +206,7 @@ class ProcessingService:
             manufacturer=manufacturer,
             mpn=mpn,
             part_desc=part_desc,
+            fetch_live=fetch_live,
         )
 
         norm_brand, norm_mfg = brand_normalizer.normalize_brand_and_manufacturer(
@@ -244,8 +247,8 @@ class ProcessingService:
                     "is_missing": True,
                 })
 
-        # Step 3b: Live Google Gemini API Inference for Technical Specifications
-        if openai_service.gemini_client:
+        # Step 3b: Live Google Gemini API Inference (for single MPN quick enrich or on-demand)
+        if run_llm_inference and openai_service.gemini_client:
             try:
                 ai_enrich_prompt = (
                     f"Product Identity: {norm_brand} (MPN: {mpn})\n"
@@ -573,16 +576,18 @@ class ProcessingService:
                             part_desc=str(desc),
                             catalog_id=catalog_id,
                             source_filename=filename,
+                            fetch_live=False,
+                            run_llm_inference=False,
                         )
 
                         created_products_count += 1
                         total_attributes_count += len(attrs)
                         total_issues_count += len(issues)
 
-                        # Periodically commit and update progress
-                        if idx % 10 == 0:
+                        # Periodically commit and update progress every 50 records
+                        if (idx + 1) % 50 == 0 or idx == len(raw_records) - 1:
                             job.processed_products = idx + 1
-                            job.progress = min(90, 40 + int((idx / max(1, len(raw_records))) * 50))
+                            job.progress = min(95, 20 + int(((idx + 1) / max(1, len(raw_records))) * 75))
                             await db.commit()
 
                     except Exception as row_exc:

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import HeroSection from '@/components/landing/HeroSection';
 import ProblemSection from '@/components/landing/ProblemSection';
 import SolutionSection from '@/components/landing/SolutionSection';
+import IndustrySolutionsSection from '@/components/landing/IndustrySolutionsSection';
 import AIIntelligenceSection from '@/components/landing/AIIntelligenceSection';
 import ExplainableAISection from '@/components/landing/ExplainableAISection';
 import CTASection from '@/components/landing/CTASection';
@@ -18,6 +19,7 @@ export default function HomePage() {
       <HeroSection />
       <ProblemSection />
       <SolutionSection />
+      <IndustrySolutionsSection />
       <AIIntelligenceSection />
       <ExplainableAISection />
       <CTASection />

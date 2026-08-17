@@ -2,329 +2,371 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Zap, CheckCircle, ShieldCheck, Sparkles, Layers, FileText, ChevronRight } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ShieldCheck, Sparkles, Layers, FileText, Database, ArrowUpRight, Cpu } from 'lucide-react';
 
 const STATS = [
-  { value: '94%', label: 'Avg Quality Score', icon: <CheckCircle size={15} color="#10b981" /> },
-  { value: '10×', label: 'Faster Processing', icon: <Zap size={15} color="#2563eb" /> },
-  { value: '12K+', label: 'Products Synced', icon: <Layers size={15} color="#8b5cf6" /> },
+  { value: '100%', label: 'Dynamic Real AI', sub: 'Zero static mocks' },
+  { value: '252', label: 'Delivery Columns', sub: 'Unilog format standard' },
+  { value: '5-Tier', label: 'Standard Descriptions', sub: 'Mobile, Invoice, Long' },
+  { value: '< 1.5s', label: 'Processing Speed', sub: 'Live Sourcing & LOV' },
 ];
 
-const PIPELINE_NODES = [
-  { step: '01', title: 'Raw Input', desc: 'PDF / Datasheets', status: 'done', color: '#64748b' },
-  { step: '02', title: 'AI Extraction', desc: '18 Specs Detected', status: 'done', color: '#2563eb' },
-  { step: '03', title: 'Validation', desc: '0 Conflicts', status: 'active', color: '#10b981' },
-  { step: '04', title: 'Enrichment', desc: '98% Complete', status: 'pending', color: '#8b5cf6' },
+const SAMPLE_SPECS = [
+  { label: 'Voltage Rating', value: '440 V', status: 'verified', statusText: 'LOV Verified' },
+  { label: 'Amperage Rating', value: '9 A', status: 'verified', statusText: 'LOV Verified' },
+  { label: 'Mounting Type', value: 'DIN Rail / Panel', status: 'new_value', statusText: 'New LOV Value' },
+  { label: 'Number of Poles', value: '3', status: 'verified', statusText: 'LOV Verified' },
 ];
 
 export default function HeroSection() {
-  const [activeStep, setActiveStep] = useState(2);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setActiveStep((prev) => (prev % 4) + 1);
-    }, 2800);
-    return () => clearInterval(timer);
-  }, []);
+  const [activeTab, setActiveTab] = useState<'specs' | 'descriptions' | 'provenance'>('specs');
 
   return (
     <section
       style={{
-        paddingTop: '130px',
+        paddingTop: '120px',
         paddingBottom: '5rem',
+        backgroundColor: '#ffffff',
         position: 'relative',
       }}
     >
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 1.5rem' }}>
+      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 1.5rem' }}>
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1.1fr 0.9fr',
+            gridTemplateColumns: '1.05fr 0.95fr',
             gap: '3.5rem',
             alignItems: 'center',
           }}
           className="neu-hero-grid"
         >
-          {/* Left Column — Hero Text & CTAs */}
+          {/* Left Column — Value Proposition */}
           <div>
-            {/* Pill Badge */}
-            <div style={{ marginBottom: '1.5rem' }}>
-              <div className="neu-badge neu-badge-blue">
-                <span className="neu-dot neu-dot-pulse" />
-                <span>AI-Powered Product Intelligence</span>
+            {/* Eyebrow Pill */}
+            <div style={{ marginBottom: '1.25rem' }}>
+              <div
+                className="neu-badge neu-badge-teal"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.35rem 0.85rem',
+                  borderRadius: '9999px',
+                }}
+              >
+                <span className="neu-dot neu-dot-pulse" style={{ backgroundColor: '#00a896' }} />
+                <span style={{ fontSize: '0.8125rem', fontWeight: 600, letterSpacing: '0.03em' }}>
+                  Enterprise Product Intelligence Engine
+                </span>
               </div>
             </div>
 
+            {/* H1 Heading */}
             <h1
               style={{
-                fontSize: 'clamp(2.25rem, 4.5vw, 3.5rem)',
+                fontSize: 'clamp(2.25rem, 4.2vw, 3.35rem)',
                 fontWeight: 800,
                 lineHeight: 1.15,
-                color: 'var(--neu-text-title)',
+                color: '#0a192f',
                 letterSpacing: '-0.03em',
-                marginBottom: '1.5rem',
+                marginBottom: '1.25rem',
               }}
             >
-              Transform Product Data Into Product{' '}
-              <span
-                style={{
-                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                }}
-              >
-                Intelligence
-              </span>
+              Transform Scattered Product Data into{' '}
+              <span style={{ color: '#2563eb' }}>Validated, Commerce-Ready</span> Catalogs
             </h1>
 
+            {/* Subheading */}
             <p
               style={{
-                fontSize: '1.125rem',
-                lineHeight: 1.6,
-                color: 'var(--neu-text-body)',
+                fontSize: '1.0625rem',
+                lineHeight: 1.65,
+                color: '#475569',
                 marginBottom: '2rem',
-                maxWidth: '520px',
+                maxWidth: '540px',
               }}
             >
-              ProdSync extracts, normalizes, and validates complex technical specs from PDFs,
-              datasheets, and spreadsheets into clean, commerce-ready catalogs.
+              ProdSync ingests technical datasheets, vendor PDFs, and unformatted spreadsheets into standardized 
+              leaf-level taxonomies, LOV-validated specifications, 5-tier descriptions, and 252-column export formats.
             </p>
 
-            {/* CTAs */}
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '2.5rem' }}>
+            {/* Dual CTAs */}
+            <div style={{ display: 'flex', gap: '0.875rem', flexWrap: 'wrap', marginBottom: '2.5rem' }}>
               <Link
                 href="/register"
                 className="neu-btn neu-btn-primary"
                 style={{
-                  padding: '0.875rem 1.75rem',
-                  fontSize: '1rem',
+                  padding: '0.875rem 1.625rem',
+                  fontSize: '0.9375rem',
+                  borderRadius: '6px',
                   gap: '0.5rem',
                 }}
               >
-                Start Building Catalog
-                <ArrowRight size={18} />
+                Start Free Trial
+                <ArrowRight size={16} />
               </Link>
               <Link
-                href="/how-it-works"
+                href="/app/import"
                 className="neu-btn neu-btn-secondary"
                 style={{
                   padding: '0.875rem 1.5rem',
-                  fontSize: '1rem',
+                  fontSize: '0.9375rem',
+                  borderRadius: '6px',
+                  gap: '0.5rem',
                 }}
               >
-                See How It Works
+                Try Quick MPN Enrichment
+                <ArrowUpRight size={16} color="#64748b" />
               </Link>
             </div>
 
-            {/* Stats Trio (Neumorphic Cards) */}
+            {/* Trust Metrics Grid */}
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
+                gridTemplateColumns: 'repeat(4, 1fr)',
                 gap: '1rem',
+                paddingTop: '1.75rem',
+                borderTop: '1px solid #e2e8f0',
               }}
             >
-              {STATS.map((s) => (
-                <div
-                  key={s.label}
-                  className="neu-card"
-                  style={{
-                    padding: '1rem',
-                    textAlign: 'center',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.35rem',
-                      marginBottom: '0.25rem',
-                    }}
-                  >
-                    {s.icon}
-                    <div
-                      style={{
-                        fontSize: '1.375rem',
-                        fontWeight: 800,
-                        color: 'var(--neu-text-title)',
-                      }}
-                    >
-                      {s.value}
-                    </div>
+              {STATS.map((stat, idx) => (
+                <div key={idx}>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0a192f', letterSpacing: '-0.02em' }}>
+                    {stat.value}
                   </div>
-                  <div
-                    style={{
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      color: 'var(--neu-text-muted)',
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    {s.label}
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#2563eb', marginTop: '2px' }}>
+                    {stat.label}
+                  </div>
+                  <div style={{ fontSize: '0.6875rem', color: '#94a3b8' }}>
+                    {stat.sub}
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Right Column — Tactile Neumorphic Live Demo Console */}
-          <div>
+          {/* Right Column — Live Technical Product Deck Visual */}
+          <div
+            style={{
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              boxShadow: '0 12px 30px -5px rgba(15, 23, 42, 0.08), 0 4px 10px -2px rgba(15, 23, 42, 0.04)',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Window Header */}
             <div
-              className="neu-raised-lg"
               style={{
-                padding: '1.75rem',
-                position: 'relative',
+                padding: '0.75rem 1.25rem',
+                background: '#f8fafc',
+                borderBottom: '1px solid #e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
               }}
             >
-              {/* Header Bar */}
-              <div
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', gap: '5px' }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#f87171' }} />
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#fbbf24' }} />
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#34d399' }} />
+                </div>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#334155' }}>
+                  Live Enrichment Pipeline · Schneider Electric LC1D09M7
+                </span>
+              </div>
+              <span
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '1.25rem',
-                  paddingBottom: '0.875rem',
-                  borderBottom: '1px solid rgba(255,255,255,0.7)',
+                  fontSize: '0.6875rem',
+                  fontWeight: 700,
+                  color: '#059669',
+                  backgroundColor: '#d1fae5',
+                  padding: '2px 8px',
+                  borderRadius: '9999px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <div className="neu-dot neu-dot-active" />
-                  <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--neu-text-title)' }}>
-                    Live AI Pipeline Monitor
-                  </span>
+                ● 252-Col Ready
+              </span>
+            </div>
+
+            {/* Product Meta Banner */}
+            <div style={{ padding: '1.25rem 1.25rem 0.75rem', borderBottom: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Taxonomy ID #120441 · Electrical & Industrial Controls
+                  </div>
+                  <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', margin: '4px 0' }}>
+                    TeSys D Magnetic Contactor 3P 440V 9A
+                  </h3>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                    Classpath: Electrical &gt; Industrial Controls &gt; Contactors &gt; Magnetic Contactors
+                  </div>
                 </div>
-                <div className="neu-badge neu-badge-emerald" style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }}>
-                  Ready
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#059669' }}>94%</div>
+                  <div style={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 600 }}>Quality Score</div>
                 </div>
               </div>
 
-              {/* Sample Product Well */}
-              <div
-                className="neu-inset"
-                style={{
-                  padding: '1rem 1.25rem',
-                  marginBottom: '1.25rem',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <FileText size={16} color="#2563eb" />
-                    <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--neu-text-title)' }}>
-                      Siemens_VFD_G120X_Spec.pdf
-                    </span>
-                  </div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--neu-text-muted)', fontWeight: 500 }}>
-                    1.8 MB
-                  </span>
-                </div>
-
-                {/* Extracted Key-Values Preview */}
-                <div
+              {/* View Switcher Tabs */}
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                <button
+                  onClick={() => setActiveTab('specs')}
                   style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(2, 1fr)',
-                    gap: '0.5rem',
-                    fontSize: '0.78125rem',
+                    padding: '0.375rem 0.75rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    borderRadius: '4px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: activeTab === 'specs' ? '#2563eb' : '#f1f5f9',
+                    color: activeTab === 'specs' ? '#ffffff' : '#475569',
+                    transition: 'all 0.15s ease',
                   }}
                 >
-                  <div style={{ background: 'rgba(255,255,255,0.5)', padding: '0.4rem 0.6rem', borderRadius: '8px' }}>
-                    <span style={{ color: 'var(--neu-text-muted)' }}>Power: </span>
-                    <strong style={{ color: 'var(--neu-text-title)' }}>15 kW (20 HP)</strong>
-                  </div>
-                  <div style={{ background: 'rgba(255,255,255,0.5)', padding: '0.4rem 0.6rem', borderRadius: '8px' }}>
-                    <span style={{ color: 'var(--neu-text-muted)' }}>Voltage: </span>
-                    <strong style={{ color: 'var(--neu-text-title)' }}>380-480 V</strong>
-                  </div>
-                </div>
+                  Extracted Specs (4)
+                </button>
+                <button
+                  onClick={() => setActiveTab('descriptions')}
+                  style={{
+                    padding: '0.375rem 0.75rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    borderRadius: '4px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: activeTab === 'descriptions' ? '#2563eb' : '#f1f5f9',
+                    color: activeTab === 'descriptions' ? '#ffffff' : '#475569',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  5-Tier Descriptions
+                </button>
+                <button
+                  onClick={() => setActiveTab('provenance')}
+                  style={{
+                    padding: '0.375rem 0.75rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    borderRadius: '4px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: activeTab === 'provenance' ? '#2563eb' : '#f1f5f9',
+                    color: activeTab === 'provenance' ? '#ffffff' : '#475569',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  Provenance & Sourcing
+                </button>
               </div>
+            </div>
 
-              {/* 4 Pipeline Step Stages */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {PIPELINE_NODES.map((node, i) => {
-                  const nodeIndex = i + 1;
-                  const isCurrent = activeStep === nodeIndex;
-                  const isPast = activeStep > nodeIndex;
-
-                  return (
+            {/* Tab View Content */}
+            <div style={{ padding: '1.25rem', minHeight: '220px', backgroundColor: '#fafbfc' }}>
+              {activeTab === 'specs' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {SAMPLE_SPECS.map((spec, idx) => (
                     <div
-                      key={node.step}
-                      className={isCurrent ? 'neu-inset' : 'neu-card'}
+                      key={idx}
                       style={{
-                        padding: '0.75rem 1rem',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        transition: 'all 0.3s ease',
+                        padding: '0.5rem 0.75rem',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '6px',
+                        fontSize: '0.8125rem',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
-                        <div
-                          className="neu-raised-sm"
+                      <span style={{ fontWeight: 600, color: '#334155' }}>{spec.label}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontWeight: 700, color: '#0f172a' }}>{spec.value}</span>
+                        <span
                           style={{
-                            width: '32px',
-                            height: '32px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '0.75rem',
-                            fontWeight: 800,
-                            color: isCurrent ? 'var(--neu-primary)' : 'var(--neu-text-muted)',
-                            background: isCurrent ? '#ffffff' : 'var(--neu-bg)',
+                            fontSize: '0.6875rem',
+                            fontWeight: 600,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            backgroundColor: spec.status === 'verified' ? '#f0fdf4' : '#eff6ff',
+                            color: spec.status === 'verified' ? '#059669' : '#2563eb',
+                            border: `1px solid ${spec.status === 'verified' ? '#bbf7d0' : '#bfdbfe'}`,
                           }}
                         >
-                          {node.step}
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--neu-text-title)' }}>
-                            {node.title}
-                          </div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--neu-text-muted)' }}>
-                            {node.desc}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        {isCurrent ? (
-                          <div className="neu-badge neu-badge-blue" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}>
-                            <span className="neu-dot neu-dot-pulse" style={{ width: '6px', height: '6px' }} />
-                            Running
-                          </div>
-                        ) : isPast ? (
-                          <div className="neu-badge neu-badge-emerald" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}>
-                            <CheckCircle size={10} />
-                            Passed
-                          </div>
-                        ) : (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--neu-text-muted)', fontWeight: 500 }}>
-                            Queued
-                          </div>
-                        )}
+                          {spec.statusText}
+                        </span>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  ))}
+                </div>
+              )}
 
-              {/* Bottom Accuracy Ribbon */}
-              <div
+              {activeTab === 'descriptions' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                  <div style={{ backgroundColor: '#ffffff', padding: '0.625rem 0.75rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6875rem', color: '#64748b', fontWeight: 600, marginBottom: '2px' }}>
+                      <span>INVOICE / ERP DESCRIPTION</span>
+                      <span>27 / 40 CHARS (ALL CAPS)</span>
+                    </div>
+                    <code style={{ fontSize: '0.75rem', color: '#0f172a', fontWeight: 600 }}>MAGNETIC CONTACTOR 440V 9A</code>
+                  </div>
+                  <div style={{ backgroundColor: '#ffffff', padding: '0.625rem 0.75rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6875rem', color: '#64748b', fontWeight: 600, marginBottom: '2px' }}>
+                      <span>MOBILE COMMERCE DESCRIPTION</span>
+                      <span>79 / 80 CHARS</span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#334155' }}>
+                      Schneider Electric TeSys D Magnetic Contactor, 3P, 440V, 9A, 220V AC Coil
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'provenance' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.75rem' }}>
+                  <div style={{ padding: '0.5rem 0.75rem', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                    <div style={{ fontWeight: 700, color: '#059669' }}>Priority 1: Official Manufacturer Website</div>
+                    <div style={{ color: '#64748b' }}>https://www.se.com/us/en/product/LC1D09M7 · Conf: 98%</div>
+                  </div>
+                  <div style={{ padding: '0.5rem 0.75rem', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                    <div style={{ fontWeight: 700, color: '#2563eb' }}>Technical Datasheet PDF (DocIntel OCR)</div>
+                    <div style={{ color: '#64748b' }}>Page 4, Table 3.1 &quot;Electrical Characteristics&quot; · 0 Conflicts</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Window Footer Actions */}
+            <div
+              style={{
+                padding: '0.75rem 1.25rem',
+                backgroundColor: '#ffffff',
+                borderTop: '1px solid #e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                Ready to export in CSV, XLSX, or JSON format
+              </span>
+              <Link
+                href="/app/import"
                 style={{
-                  marginTop: '1.25rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  color: '#2563eb',
+                  textDecoration: 'none',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
-                  paddingTop: '0.875rem',
-                  borderTop: '1px solid rgba(255,255,255,0.7)',
-                  fontSize: '0.8125rem',
+                  gap: '4px',
                 }}
               >
-                <span style={{ color: 'var(--neu-text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <ShieldCheck size={16} color="#10b981" />
-                  Deterministic Validation
-                </span>
-                <strong style={{ color: 'var(--neu-primary)' }}>100% Provenance Traceable</strong>
-              </div>
+                Test in Workspace &rarr;
+              </Link>
             </div>
           </div>
         </div>

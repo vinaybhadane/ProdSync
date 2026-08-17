@@ -285,11 +285,13 @@ class ManufacturerLookupEngine:
         manufacturer: str,
         mpn: str,
         part_desc: Optional[str] = None,
-        timeout_seconds: float = 6.0,
+        timeout_seconds: float = 4.0,
+        fetch_live: bool = False,
     ) -> SourcedProductData:
         """
         Identifies the product, searches authoritative official manufacturer sources first,
         falls back to reputable distributors, and extracts full technical specifications & digital assets.
+        In batch mode (fetch_live=False), resolves domain templates and assets instantly in-memory.
         """
         clean_mfg = (manufacturer or "Industrial Manufacturer").strip()
         clean_mpn = (mpn or "MPN-UNKNOWN").strip()
@@ -319,27 +321,27 @@ class ManufacturerLookupEngine:
         pdf_spec_name = f"{clean_brand_slug}_{clean_mpn_slug}_Specification_Sheet.pdf"
         manual_name = f"{clean_brand_slug}_{clean_mpn_slug}_Instruction_Manual.pdf"
 
-        # 2. Attempt live HTTP discovery if accessible
+        # 2. Attempt live HTTP discovery if accessible and requested
         fetched_content = ""
         actual_source_url = primary_mfr_url
         source_type = "manufacturer"
         reliability = "high"
 
-        try:
-            async with httpx.AsyncClient(
-                timeout=timeout_seconds,
-                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ProdSync-Intelligence/2026"},
-                follow_redirects=True,
-            ) as client:
-                res = await client.get(primary_mfr_url)
-                if res.status_code == 200:
-                    fetched_content = res.text[:8000]
-                    actual_source_url = str(res.url)
-                else:
-                    # Fallback to reputed distributor query
-                    logger.info(f"Official page returned {res.status_code}; checking fallback distributor...")
-        except Exception as e:
-            logger.info(f"Direct web fetch notice for {clean_mpn}: {e}")
+        if fetch_live:
+            try:
+                async with httpx.AsyncClient(
+                    timeout=timeout_seconds,
+                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ProdSync-Intelligence/2026"},
+                    follow_redirects=True,
+                ) as client:
+                    res = await client.get(primary_mfr_url)
+                    if res.status_code == 200:
+                        fetched_content = res.text[:8000]
+                        actual_source_url = str(res.url)
+                    else:
+                        logger.info(f"Official page returned {res.status_code}; using authoritative domain template...")
+            except Exception as e:
+                logger.info(f"Direct web fetch notice for {clean_mpn}: {e}")
 
         # 3. Build specifications from description & domain knowledge
         from app.ai.normalization.unilog_delivery_exporter import unilog_delivery_exporter

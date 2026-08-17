@@ -1,192 +1,182 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Building2, Users, Boxes, Factory, ArrowRight, CheckCircle2, ShieldCheck, Zap, Layers } from 'lucide-react';
+import { Building2, Users, Boxes, Factory, ArrowRight, CheckCircle2, ShieldCheck, Zap, Layers, ShoppingCart, Cpu } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Solutions — ProdSync AI',
-  description: 'ProdSync solutions for industrial suppliers, procurement teams, and catalog managers.',
+  title: 'Industry Solutions — ProdSync Enterprise Product Intelligence',
+  description: 'Tailored catalog enrichment and standardization solutions for Industrial Distributors, B2B Manufacturers, and Enterprise Commerce.',
 };
 
 const SOLUTIONS = [
   {
-    icon: <Building2 size={26} color="#2563eb" />,
-    badgeClass: 'neu-badge-blue',
-    role: 'Industrial Suppliers & Manufacturers',
-    tag: 'Enterprise Catalog Onboarding',
-    challenge: 'Managing 10,000+ technical SKUs with frequent revisions, mixed metric/imperial spec sheets, and PDF datasheets.',
-    outcome: 'Reduce catalog onboarding time from 4 weeks to 2 hours with 99.4% attribute extraction precision.',
+    icon: <Building2 size={24} color="#2563eb" />,
+    role: 'Industrial Distributors & Wholesalers',
+    tag: 'Vendor Catalog Onboarding',
+    challenge: 'Managing 100,000+ supplier line items across inconsistent price sheets, conflicting spec units, and unstructured PDF datasheets.',
+    outcome: 'Reduce catalog onboarding cycles from 4 weeks to 2 hours while generating 252-column delivery files with 99.8% precision.',
     benefits: [
-      'Automated PDF & schematic attribute extraction',
-      'Instant UNSPSC & ETIM commercial taxonomy mapping',
-      'Direct API syndication to distributor channels',
+      'Automated extraction of technical specifications and leaf taxonomy mapping',
+      'Instant generation of character-compliant Invoice and Mobile descriptions',
+      'Multi-source conflict detection flagging supplier discrepancies',
+      'Direct CSV, Excel XLSX, and JSON export in official 252-column delivery format',
     ],
   },
   {
-    icon: <Users size={26} color="#059669" />,
-    badgeClass: 'neu-badge-emerald',
-    role: 'Procurement & Engineering Teams',
-    tag: 'Vendor Data Governance',
-    challenge: 'Verifying supplier-submitted technical parameters against internal safety, DIN, and electrical standards.',
-    outcome: 'Eliminate counterfeit specs and duplicate supplier line items with automated conflict detection.',
+    icon: <Factory size={24} color="#00a896" />,
+    role: 'B2B Equipment Manufacturers & OEMs',
+    tag: 'Authoritative Product Sourcing',
+    challenge: 'Distributors publishing incorrect fractional dimensions, outdated spec sheets, and truncated marketing descriptions.',
+    outcome: 'Establish a certified digital product passport with field-level provenance linking every spec directly to approved engineering docs.',
     benefits: [
-      'Multi-vendor specification conflict detection',
-      'Automated boundary & physical law validation',
-      'Complete field-level provenance audit trails',
+      'Preserve certified Manufacturer Marketing Copy and feature bullet points',
+      'Enforce standardized industrial List of Values (LOV) across all channels',
+      'Protect digital asset links (Product Image JPGs, PDF Specification Sheets)',
+      'Deterministic UNSPSC and leaf taxonomy compliance',
     ],
   },
   {
-    icon: <Boxes size={26} color="#7c3aed" />,
-    badgeClass: 'neu-badge-purple',
-    role: 'E-Commerce & PIM Catalog Managers',
-    tag: 'Commerce-Ready Data Publishing',
-    challenge: 'Incomplete product records, missing dimensional attributes, and lack of filterable facet data on storefronts.',
-    outcome: 'Skyrocket product search conversion with 100% complete, enriched, and standardized product filters.',
+    icon: <ShoppingCart size={24} color="#3b82f6" />,
+    role: 'Enterprise E-Commerce & PIM Catalog Teams',
+    tag: 'Search Conversion & Syndication',
+    challenge: 'Incomplete product filters, missing dimensional facets, and descriptions that exceed ERP or marketplace character limits.',
+    outcome: 'Maximize parametric search conversion with standardized attributes, approved units of measure, and calibrated 5-tier descriptions.',
     benefits: [
-      'Contextual AI enrichment for missing attributes',
-      'Standardized facet normalization (IP rating, wattage, size)',
-      'Export ready for Shopify, Akeneo, and SAP Hybris',
+      'Invoice Description strictly formatted to ≤40 characters in ALL CAPS',
+      'Mobile Description optimized to 60–80 characters for fast scanning',
+      'Full Long Description utilizing authorized industrial UOM abbreviations',
+      'Seamless syndication to Amazon B2B, Akeneo, SAP, and custom PIM channels',
     ],
   },
   {
-    icon: <Factory size={26} color="#d97706" />,
-    badgeClass: 'neu-badge-amber',
-    role: 'Technical Sales & Field Application Engineers',
-    tag: 'Rapid Technical Quote Generation',
-    challenge: 'Digging through 500-page manual PDFs during live customer engineering calls to find critical specs.',
-    outcome: 'Instant parametric lookup and side-by-side product comparison in milliseconds.',
+    icon: <Cpu size={24} color="#059669" />,
+    role: 'Procurement & Application Engineering',
+    tag: 'Parametric Verification & Proof',
+    challenge: 'Manually verifying supplier ratings against safety standards and cross-checking competing vendor part numbers.',
+    outcome: 'Instant side-by-side parametric comparison with complete audit trails and transparent AI reasoning logs.',
     benefits: [
-      'Instant parametric search across all catalog lines',
-      'Side-by-side technical attribute comparison',
-      'Exportable customer-ready spec summaries',
+      'Verifiable source URLs and PDF page coordinate provenance',
+      'Mathematical 0–100% data quality and completeness scoring',
+      'Deterministic physical boundary validation preventing impossible values',
+      'One-click export of customer-ready engineering summaries',
     ],
   },
 ];
 
 export default function SolutionsPage() {
   return (
-    <div style={{ paddingBottom: '5rem' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 1.5rem' }}>
-        {/* Title Banner */}
-        <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
+    <div style={{ paddingTop: '100px', backgroundColor: '#ffffff', paddingBottom: '5rem' }}>
+      {/* Title Header */}
+      <section style={{ padding: '4rem 1.5rem 3rem', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+        <div style={{ maxWidth: '1280px', margin: '0 auto', textAlign: 'center' }}>
           <div className="neu-badge neu-badge-blue" style={{ marginBottom: '1rem' }}>
-            <Layers size={14} />
-            <span>Tailored Industry Solutions</span>
+            <Layers size={13} />
+            <span>Enterprise Solutions</span>
           </div>
           <h1
             style={{
-              fontSize: 'clamp(2rem, 4vw, 3.25rem)',
+              fontSize: 'clamp(2.25rem, 4vw, 3.25rem)',
               fontWeight: 800,
-              color: 'var(--neu-text-title)',
-              letterSpacing: '-0.025em',
+              color: '#0a192f',
+              letterSpacing: '-0.03em',
               marginBottom: '1rem',
             }}
           >
-            Solutions for Industrial Commerce
+            Solutions for Industrial B2B Commerce
           </h1>
           <p
             style={{
               fontSize: '1.125rem',
-              color: 'var(--neu-text-body)',
-              maxWidth: '620px',
+              color: '#475569',
+              maxWidth: '680px',
               margin: '0 auto',
               lineHeight: 1.6,
             }}
           >
-            Engineered specifically for the rigorous data quality, compliance, and taxonomy
-            requirements of modern technical enterprises.
+            Engineered specifically for the rigorous data quality, leaf taxonomy precision, 
+            and syndication standards demanded by technical enterprises.
           </p>
         </div>
+      </section>
 
-        {/* 4 Solutions Grid */}
+      {/* Solutions Cards Grid */}
+      <section style={{ maxWidth: '1280px', margin: '0 auto', padding: '4.5rem 1.5rem 2rem' }}>
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
             gap: '2rem',
-            marginBottom: '4rem',
           }}
         >
-          {SOLUTIONS.map((s) => (
+          {SOLUTIONS.map((sol) => (
             <div
-              key={s.role}
-              className="neu-card"
+              key={sol.role}
               style={{
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
                 padding: '2.25rem',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
+                boxShadow: '0 1px 3px 0 rgba(15, 23, 42, 0.05)',
+                transition: 'transform 0.15s ease, border-color 0.15s ease',
               }}
             >
               <div>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '1.5rem',
-                  }}
-                >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                   <div
-                    className="neu-inset-sm"
                     style={{
-                      width: '52px',
-                      height: '52px',
-                      borderRadius: '14px',
+                      width: '46px',
+                      height: '46px',
+                      borderRadius: '8px',
+                      backgroundColor: '#f8fafc',
+                      border: '1px solid #e2e8f0',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
                   >
-                    {s.icon}
+                    {sol.icon}
                   </div>
-                  <span className={`neu-badge ${s.badgeClass}`} style={{ fontSize: '0.75rem' }}>
-                    {s.tag}
+                  <span
+                    style={{
+                      fontSize: '0.6875rem',
+                      fontWeight: 700,
+                      padding: '3px 8px',
+                      borderRadius: '4px',
+                      backgroundColor: '#eff6ff',
+                      color: '#2563eb',
+                      border: '1px solid #dbeafe',
+                    }}
+                  >
+                    {sol.tag}
                   </span>
                 </div>
 
-                <h2
-                  style={{
-                    fontSize: '1.25rem',
-                    fontWeight: 800,
-                    color: 'var(--neu-text-title)',
-                    marginBottom: '1rem',
-                    lineHeight: 1.3,
-                  }}
-                >
-                  {s.role}
-                </h2>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0a192f', marginBottom: '0.75rem' }}>
+                  {sol.role}
+                </h3>
 
-                {/* Challenge & Outcome Inset Wells */}
-                <div className="neu-inset-sm" style={{ padding: '0.875rem 1rem', marginBottom: '1.25rem' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--neu-text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
-                    The Bottleneck
+                {/* Challenge & Outcome Block */}
+                <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1rem', marginBottom: '1.25rem' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '4px' }}>
+                    Challenge:
                   </div>
-                  <div style={{ fontSize: '0.8125rem', color: 'var(--neu-text-body)', lineHeight: 1.5 }}>
-                    {s.challenge}
+                  <div style={{ fontSize: '0.8125rem', color: '#334155', lineHeight: 1.5, marginBottom: '0.75rem' }}>
+                    {sol.challenge}
                   </div>
-                </div>
-
-                <div
-                  style={{
-                    padding: '0.875rem 1rem',
-                    borderRadius: '10px',
-                    background: 'rgba(37,99,235,0.06)',
-                    border: '1px solid rgba(37,99,235,0.15)',
-                    marginBottom: '1.5rem',
-                  }}
-                >
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--neu-primary)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
-                    ProdSync Outcome
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#059669', textTransform: 'uppercase', marginBottom: '4px' }}>
+                    ProdSync Outcome:
                   </div>
-                  <div style={{ fontSize: '0.8125rem', color: 'var(--neu-text-title)', fontWeight: 600, lineHeight: 1.5 }}>
-                    {s.outcome}
+                  <div style={{ fontSize: '0.8125rem', color: '#064e3b', fontWeight: 600, lineHeight: 1.5 }}>
+                    {sol.outcome}
                   </div>
                 </div>
 
                 {/* Key Benefits List */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', marginBottom: '1.75rem' }}>
-                  {s.benefits.map((b) => (
-                    <div key={b} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.875rem', color: 'var(--neu-text-body)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                  {sol.benefits.map((b, bIdx) => (
+                    <div key={bIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.8125rem', color: '#334155' }}>
                       <CheckCircle2 size={16} color="#059669" style={{ flexShrink: 0, marginTop: '2px' }} />
                       <span>{b}</span>
                     </div>
@@ -196,66 +186,39 @@ export default function SolutionsPage() {
 
               <div>
                 <Link
-                  href="/register"
+                  href="/app/import"
                   className="neu-btn neu-btn-primary"
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    fontSize: '0.875rem',
-                    gap: '0.375rem',
-                  }}
+                  style={{ width: '100%', padding: '0.75rem', fontSize: '0.875rem', borderRadius: '6px', gap: '0.5rem' }}
                 >
-                  Explore Solution
-                  <ArrowRight size={15} />
+                  Explore in Workspace
+                  <ArrowRight size={14} />
                 </Link>
               </div>
             </div>
           ))}
         </div>
+      </section>
 
-        {/* Bottom Banner */}
-        <div
-          className="neu-raised-xl"
-          style={{
-            padding: '3.5rem 2rem',
-            textAlign: 'center',
-          }}
-        >
-          <h2
-            style={{
-              fontSize: '1.875rem',
-              fontWeight: 800,
-              color: 'var(--neu-text-title)',
-              marginBottom: '1rem',
-            }}
-          >
-            Have a Custom Industrial Catalog Workflow?
+      {/* Bottom CTA */}
+      <section style={{ padding: '4rem 1.5rem', backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0', marginTop: '3rem' }}>
+        <div style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0a192f', marginBottom: '0.75rem' }}>
+            Ready to standardize your enterprise catalog?
           </h2>
-          <p
-            style={{
-              fontSize: '1rem',
-              color: 'var(--neu-text-body)',
-              maxWidth: '540px',
-              margin: '0 auto 2rem',
-            }}
-          >
-            Our solution architects configure custom extraction templates, physical validation
-            constraints, and ERP sync pipelines for enterprise teams.
+          <p style={{ fontSize: '0.9375rem', color: '#475569', marginBottom: '1.75rem' }}>
+            Test the pipeline with minimal inputs or batch CSV files today.
           </p>
-          <Link
-            href="/register"
-            className="neu-btn neu-btn-primary"
-            style={{
-              padding: '0.875rem 2rem',
-              fontSize: '1rem',
-              gap: '0.5rem',
-            }}
-          >
-            Schedule Consultation
-            <ArrowRight size={18} />
-          </Link>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+            <Link
+              href="/register"
+              className="neu-btn neu-btn-primary"
+              style={{ padding: '0.75rem 1.75rem', fontSize: '0.875rem', borderRadius: '6px' }}
+            >
+              Get Started Free
+            </Link>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
